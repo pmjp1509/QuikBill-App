@@ -1,47 +1,87 @@
-# Desktop Billing Application
+# Enhanced Desktop Billing Application with GST Support
 
-A complete, production-ready Python desktop application for offline billing with barcode scanning, thermal printing, and inventory management.
+A complete, production-ready Python desktop application for offline billing with GST support, barcode scanning, thermal printing, and advanced inventory management.
 
-## Features
+## 🆕 New Features in Version 2.0
+
+### 🎯 Responsive UI Design
+- **DPI Awareness**: Automatic scaling for different screen resolutions
+- **Resizable Windows**: All windows are fully resizable with adaptive layouts
+- **Dynamic Font Scaling**: UI elements scale based on window size
+- **Responsive Tables**: Column widths adjust automatically
+
+### 🧺 Enhanced Inventory Management
+- **HSN Code Support**: Track HSN codes for all items
+- **GST Integration**: SGST and CGST percentage configuration per item
+- **Quantity Tracking**: Monitor stock levels for all items
+- **Auto-calculated Total Price**: Base Price + SGST + CGST
+- **Improved UI**: Better forms with real-time calculations
+
+### 🧾 GST-Aware Billing System
+- **Complete GST Breakdown**: Shows base price, SGST, CGST, and final price
+- **Real-time Tax Calculations**: Automatic GST computation during billing
+- **Enhanced Bill Display**: Shows all tax components in the bill table
+- **GST Summary**: Total SGST and CGST amounts displayed
+
+### 🖨️ Enhanced Thermal Printing
+- **GST Receipt Format**: Professional receipts with complete tax breakdown
+- **HSN Code Printing**: HSN codes printed for each item
+- **Tax Summary**: Separate section showing total SGST and CGST
+- **Compact Design**: Optimized for 58mm thermal printers
+
+### 📤 Advanced Export Features
+- **Date Range Export**: Export bills for specific date ranges
+- **Filtered Export**: Export currently filtered/searched bills
+- **Enhanced CSV Format**: Includes GST details in exports
+- **Multiple Export Options**: All bills or filtered results
+
+### 🔍 Customer Name Autocomplete
+- **Smart Suggestions**: Auto-complete from previous customer names
+- **Dynamic Filtering**: Suggestions update as you type
+- **Case-insensitive Search**: Flexible matching
+
+## Core Features
 
 ### 🏠 Home Dashboard
-- Clean, user-friendly interface with large navigation buttons
+- Clean, responsive interface with large navigation buttons
 - Three main sections: Create Bill, Bill History, and Inventory
-- Non-technical shopkeeper-friendly design
+- GST-enabled system branding
 
 ### 🧾 Create Bill
 - **Barcode Items**: Keyboard-wedge scanner support with auto-add functionality
-- **Loose Items**: Category-based selection with visual tiles
-- **Live Bill Panel**: Real-time bill calculation with quantity controls
-- **Customer Information**: Mandatory customer name, optional phone number
-- **Thermal Printing**: Direct ESC/POS printer support for 58mm receipts
+- **Loose Items**: Category-based selection with visual tiles and GST details
+- **Live Bill Panel**: Real-time bill calculation with GST breakdown
+- **Customer Information**: Autocomplete customer names, optional phone number
+- **Thermal Printing**: Direct ESC/POS printer support for 58mm receipts with GST
 
 ### 📜 Bill History
-- Complete bill history with search functionality
-- Bill details view with itemized breakdown
+- Complete bill history with advanced search functionality
+- Date range filtering for targeted bill searches
+- Bill details view with itemized GST breakdown
 - Reprint functionality for any previous bill
-- CSV export for all bills
+- Enhanced CSV export with multiple filter options
 
 ### 🧺 Inventory Management
-- **Barcode Items**: Add/Edit/Delete with barcode, name, and price (5 sample items auto-initialized if empty)
-- **Loose Items**: Category-based organization with images
-- **Categories**: Manage loose item categories
-- **Price Management**: Remember last-used prices
+- **Barcode Items**: Add/Edit/Delete with barcode, name, HSN code, quantity, base price, SGST%, CGST%
+- **Loose Items**: Category-based organization with images and GST details
+- **Categories**: Manage loose item categories with delete functionality
+- **GST Management**: Configure tax rates per item with auto-calculation
+- **Responsive Tables**: Adaptive column widths and font sizes
 
 ### 🖨️ Thermal Printing
 - ESC/POS 58mm thermal printer support
-- Professional receipt formatting
+- Professional receipt formatting with GST breakdown
 - Shop branding with name, address, and phone
-- Itemized billing with totals
-- No browser or Ctrl+P dependencies
+- Itemized billing with base price, taxes, and totals
+- HSN code display for compliance
 
 ## Tech Stack
 
-- **GUI**: PyQt5
-- **Database**: SQLite (offline)
+- **GUI**: PyQt5 with responsive design
+- **Database**: SQLite (offline) with GST schema
 - **Printing**: python-escpos, pyusb (for USB printer support)
 - **Image Handling**: Pillow
-- **CSV Export**: Python csv module
+- **CSV Export**: Python csv module with enhanced filtering
 - **Packaging**: PyInstaller
 
 ## Installation
@@ -70,6 +110,46 @@ pyinstaller --onefile --windowed main.py
 pyinstaller billing_app.spec
 ```
 
+## Database Schema Updates
+
+The enhanced version includes new database fields:
+
+### Barcode Items
+- `hsn_code`: HSN code for the item
+- `quantity`: Stock quantity
+- `base_price`: Price before tax
+- `sgst_percent`: SGST percentage
+- `cgst_percent`: CGST percentage
+- `total_price`: Auto-calculated final price
+
+### Loose Items
+- Similar GST fields as barcode items
+- Enhanced with quantity tracking
+
+### Bills
+- `total_sgst`: Total SGST amount
+- `total_cgst`: Total CGST amount
+
+### Bill Items
+- Complete GST breakdown per item
+- HSN code tracking
+- Base price and tax amounts
+
+## GST Calculations
+
+### Formula
+```
+Base Amount = Quantity × Base Price
+SGST Amount = Base Amount × SGST%
+CGST Amount = Base Amount × CGST%
+Final Price = Base Amount + SGST Amount + CGST Amount
+```
+
+### Tax Display
+- **Inventory**: Shows total price (including tax) to users
+- **Billing**: Shows complete breakdown (base + SGST + CGST = final)
+- **Receipts**: Professional format with tax summary
+
 ## Printer Setup
 
 ### Supported Printers
@@ -83,63 +163,44 @@ pyinstaller billing_app.spec
 - **Serial**: RS-232 serial connection
 - **Network**: Ethernet/WiFi network connection
 
-### Setup Steps
-1. Install printer drivers
-2. Connect printer via USB/Serial/Network
-3. Test printer connection in the application
-4. Configure printer settings if needed
+## Export Features
 
-## Database
+### Available Export Options
+1. **Export All Bills**: Complete bill history
+2. **Export Filtered Bills**: Currently displayed bills only
+3. **Date Range Export**: Bills within specific date range
+4. **Customer-specific Export**: Bills for specific customers
 
-The application uses SQLite for local data storage:
-- **data_base/billing.db**: Auto-created on first run in the data_base folder
-- **Tables**: barcode_items, loose_categories, loose_items, bills, bill_items
-- **Default Data**: On first run, 5 sample barcode items (Kit Kat, Dairy Milk, 5 Star, Perk, Munch) and several loose categories/items are added if the tables are empty.
-- **Backup**: Regular database backups recommended
+### CSV Format
+Enhanced CSV includes:
+- Basic bill information
+- GST breakdown (SGST, CGST amounts)
+- Detailed item information with tax components
 
-## File Structure
+## Responsive Design Features
 
-```
-main.py                       # Application entry point
-billing_tabs/
-├── home_dashboard.py         # Main dashboard window
-├── create_bill.py            # Bill creation interface
-├── bill_history.py           # Bill history and search
-├── inventory.py              # Inventory management
-├── thermal_printer.py        # Thermal printing logic
+### DPI Scaling
+- Automatic detection of screen DPI
+- Proportional scaling of all UI elements
+- High-resolution display support
 
-data_base/
-├── database.py               # Database operations
-├── billing.db                # SQLite database (auto-created)
+### Adaptive Layouts
+- QVBoxLayout, QHBoxLayout, QGridLayout for flexibility
+- QSizePolicy for proper widget expansion
+- Dynamic font and button sizing
 
-requirements.txt              # Python dependencies
-billing_app.spec              # PyInstaller configuration
-build_instructions.txt        # Build and deployment instructions
-README.md                     # This file
-```
+### Window Management
+- All windows are resizable
+- Proper minimum and maximum size constraints
+- Centered window positioning
 
-## Usage
+## Migration from Version 1.0
 
-### Creating a Bill
-1. Click "Create Bill" from the home dashboard
-2. Scan barcodes or add loose items
-3. Adjust quantities using +/- buttons
-4. Click "Finish & Print Bill"
-5. Enter customer information
-6. Bill is saved and printed automatically
-
-### Managing Inventory
-1. Click "Inventory" from the home dashboard
-2. **Barcode Items**: Add items with barcode, name, and price
-3. **Loose Items**: Add categories and items with images
-4. Edit or delete items as needed
-
-### Viewing Bill History
-1. Click "Bill History" from the home dashboard
-2. Search bills by customer name
-3. View detailed bill information
-4. Reprint any previous bill
-5. Export all bills to CSV
+The application automatically migrates existing databases:
+- Adds new GST-related columns
+- Preserves existing data
+- Sets default GST values for existing items
+- No manual intervention required
 
 ## Customization
 
@@ -151,32 +212,72 @@ self.shop_address = "Your Shop Address"
 self.shop_phone = "Your Phone Number"
 ```
 
-### Default Categories
-Modify default categories in `data_base/database.py`:
+### Default GST Rates
+Modify default GST rates in `data_base/database.py`:
 ```python
-default_categories = ['Rice', 'Dals', 'Spices', 'Oil', 'Vegetables']
+# Example: 12% GST (6% SGST + 6% CGST)
+sgst_percent = 6.0
+cgst_percent = 6.0
 ```
 
-### Thermal Receipt Format
-Customize receipt layout in `thermal_printer.py` method `print_bill()`.
+### UI Scaling
+Adjust responsive breakpoints in individual window files:
+```python
+if width < 1200:
+    font_size = 10
+elif width < 1600:
+    font_size = 12
+else:
+    font_size = 14
+```
 
 ## Troubleshooting
 
 ### Common Issues
 - **Printer not detected**: Check USB connection, install pyusb and libusb, and drivers
-- **Database errors**: Delete billing.db to reset (make sure you are editing the correct database file; see below)
+- **Database errors**: Delete billing.db to reset (backup first)
 - **Permission issues**: Run as Administrator
 - **Barcode scanner**: Ensure keyboard-wedge mode
+- **DPI issues**: Enable high DPI scaling in Windows display settings
 
-#### Multiple Database Files
-If you see unexpected data, you may have multiple `billing.db` files (e.g., in both your project root and `dist/data_base/`). Always check which one your app is using. You can add a print statement in `database.py` to confirm the path.
+### GST-Related Issues
+- **Tax calculations wrong**: Check SGST and CGST percentages in inventory
+- **Receipt format issues**: Verify thermal printer supports extended character set
+- **Export missing GST data**: Ensure database migration completed successfully
 
-#### Resetting Inventory
-To reset all inventory data and re-initialize with default items, run the provided reset script (if available) or delete `billing.db` and restart the app.
+### Performance Optimization
+- **Large databases**: Consider periodic archiving of old bills
+- **Slow UI**: Check system DPI settings and disable unnecessary visual effects
+- **Memory usage**: Close unused windows when working with large datasets
 
-### Support
-For technical support or customization requests, contact the development team.
+## File Structure
+
+```
+main.py                       # Enhanced application entry point
+billing_tabs/
+├── home_dashboard.py         # Responsive main dashboard
+├── create_bill.py            # GST-aware bill creation
+├── bill_history.py           # Enhanced history with filtering
+├── inventory.py              # Complete inventory management
+├── thermal_printer.py        # GST receipt printing
+
+data_base/
+├── database.py               # Enhanced database with GST schema
+├── billing.db                # SQLite database (auto-created/migrated)
+
+requirements.txt              # Updated Python dependencies
+billing_app.spec              # PyInstaller configuration
+README.md                     # This enhanced documentation
+```
 
 ## License
 
-This application is provided as-is for educational and commercial use. Modify and distribute according to your needs.
+This enhanced application is provided as-is for educational and commercial use. Modify and distribute according to your needs.
+
+## Support
+
+For technical support, customization requests, or GST compliance questions, contact the development team.
+
+---
+
+**Version 2.0** - Enhanced with GST support, responsive design, and advanced features for modern billing requirements.

@@ -4,8 +4,8 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QTableWidgetItem, QDialog, QGridLayout, QSpinBox,
                              QDoubleSpinBox, QMessageBox, QFrame, QScrollArea,
                              QTextEdit, QDialogButtonBox, QInputDialog, QSizePolicy,
-                             QHeaderView, QToolButton)
-from PyQt5.QtCore import Qt, QTimer, QEvent, QSize
+                             QHeaderView, QToolButton, QCompleter, QApplication)
+from PyQt5.QtCore import Qt, QTimer, QEvent, QSize, QStringListModel
 from PyQt5.QtGui import QFont, QPixmap, QIcon
 from data_base.database import Database
 from billing_tabs.thermal_printer import ThermalPrinter
@@ -13,7 +13,7 @@ from PIL import Image
 import os
 
 class CustomerInfoDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, customer_names=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Customer Information")
         self.setModal(True)
@@ -21,16 +21,25 @@ class CustomerInfoDialog(QDialog):
         
         self.customer_name = ""
         self.customer_phone = ""
+        self.customer_names = customer_names or []
         
         self.init_ui()
     
     def init_ui(self):
         layout = QVBoxLayout()
         
-        # Customer Name
+        # Customer Name with autocomplete
         layout.addWidget(QLabel("Customer Name (Required):"))
         self.name_input = QLineEdit()
         self.name_input.setFont(QFont("Arial", 12))
+        
+        # Setup autocomplete
+        if self.customer_names:
+            completer = QCompleter(self.customer_names)
+            completer.setCaseSensitivity(Qt.CaseInsensitive)
+            completer.setFilterMode(Qt.MatchContains)
+            self.name_input.setCompleter(completer)
+        
         layout.addWidget(self.name_input)
         
         # Customer Phone
@@ -69,10 +78,12 @@ class LooseItemDialog(QDialog):
         self.item_data = item_data
         self.setWindowTitle(f"Add {item_data['name']}")
         self.setModal(True)
-        self.resize(400, 250)
+        self.resize(500, 400)
         
         self.quantity = 0
-        self.price_per_kg = item_data['price_per_kg']
+        self.base_price = item_data.get('base_price', item_data.get('price_per_kg', 0))
+        self.sgst_percent = item_data.get('sgst_percent', 0)
+        self.cgst_percent = item_data.get('cgst_percent', 0)
         
         self.init_ui()
     
@@ -84,6 +95,11 @@ class LooseItemDialog(QDialog):
         name_label.setFont(QFont("Arial", 14, QFont.Bold))
         layout.addWidget(name_label)
         
+        # HSN Code
+        hsn_label = QLabel(f"HSN Code: {self.item_data.get('hsn_code', 'N/A')}")
+        hsn_label.setFont(QFont("Arial", 12))
+        layout.addWidget(hsn_label)
+        
         # Quantity
         layout.addWidget(QLabel("Quantity (kg):"))
         self.quantity_input = QDoubleSpinBox()
@@ -92,23 +108,44 @@ class LooseItemDialog(QDialog):
         self.quantity_input.setDecimals(2)
         self.quantity_input.setSingleStep(0.1)
         self.quantity_input.setValue(1.0)
-        self.quantity_input.valueChanged.connect(self.update_total)
+        self.quantity_input.valueChanged.connect(self.update_calculations)
         layout.addWidget(self.quantity_input)
         
-        # Price per kg
-        layout.addWidget(QLabel("Price per kg (₹):"))
-        self.price_input = QDoubleSpinBox()
-        self.price_input.setMinimum(0.01)
-        self.price_input.setMaximum(9999.99)
-        self.price_input.setDecimals(2)
-        self.price_input.setValue(self.price_per_kg)
-        self.price_input.valueChanged.connect(self.update_total)
-        layout.addWidget(self.price_input)
+        # Base price per kg
+        layout.addWidget(QLabel("Base Price per kg (₹):"))
+        self.base_price_input = QDoubleSpinBox()
+        self.base_price_input.setMinimum(0.01)
+        self.base_price_input.setMaximum(9999.99)
+        self.base_price_input.setDecimals(2)
+        self.base_price_input.setValue(self.base_price)
+        self.base_price_input.valueChanged.connect(self.update_calculations)
+        layout.addWidget(self.base_price_input)
         
-        # Total
-        self.total_label = QLabel("Total: ₹0.00")
-        self.total_label.setFont(QFont("Arial", 12, QFont.Bold))
-        layout.addWidget(self.total_label)
+        # SGST %
+        layout.addWidget(QLabel("SGST (%):"))
+        self.sgst_input = QDoubleSpinBox()
+        self.sgst_input.setMinimum(0.0)
+        self.sgst_input.setMaximum(50.0)
+        self.sgst_input.setDecimals(2)
+        self.sgst_input.setValue(self.sgst_percent)
+        self.sgst_input.valueChanged.connect(self.update_calculations)
+        layout.addWidget(self.sgst_input)
+        
+        # CGST %
+        layout.addWidget(QLabel("CGST (%):"))
+        self.cgst_input = QDoubleSpinBox()
+        self.cgst_input.setMinimum(0.0)
+        self.cgst_input.setMaximum(50.0)
+        self.cgst_input.setDecimals(2)
+        self.cgst_input.setValue(self.cgst_percent)
+        self.cgst_input.valueChanged.connect(self.update_calculations)
+        layout.addWidget(self.cgst_input)
+        
+        # Calculations display
+        self.calculations_label = QLabel()
+        self.calculations_label.setFont(QFont("Arial", 12))
+        self.calculations_label.setStyleSheet("background-color: #f0f0f0; padding: 10px; border: 1px solid #ccc;")
+        layout.addWidget(self.calculations_label)
         
         # Buttons
         button_layout = QHBoxLayout()
@@ -124,18 +161,34 @@ class LooseItemDialog(QDialog):
         layout.addLayout(button_layout)
         self.setLayout(layout)
         
-        # Initial total calculation
-        self.update_total()
+        # Initial calculation
+        self.update_calculations()
     
-    def update_total(self):
+    def update_calculations(self):
         quantity = self.quantity_input.value()
-        price = self.price_input.value()
-        total = quantity * price
-        self.total_label.setText(f"Total: ₹{total:.2f}")
+        base_price = self.base_price_input.value()
+        sgst_percent = self.sgst_input.value()
+        cgst_percent = self.cgst_input.value()
+        
+        base_amount = quantity * base_price
+        sgst_amount = base_amount * sgst_percent / 100
+        cgst_amount = base_amount * cgst_percent / 100
+        final_amount = base_amount + sgst_amount + cgst_amount
+        
+        calculations_text = f"""
+Base Amount: ₹{base_amount:.2f}
+SGST ({sgst_percent}%): ₹{sgst_amount:.2f}
+CGST ({cgst_percent}%): ₹{cgst_amount:.2f}
+Final Amount: ₹{final_amount:.2f}
+        """.strip()
+        
+        self.calculations_label.setText(calculations_text)
     
     def accept_item(self):
         self.quantity = self.quantity_input.value()
-        self.price_per_kg = self.price_input.value()
+        self.base_price = self.base_price_input.value()
+        self.sgst_percent = self.sgst_input.value()
+        self.cgst_percent = self.cgst_input.value()
         self.accept()
 
 class LooseCategoryDialog(QDialog):
@@ -213,12 +266,19 @@ class LooseCategoryDialog(QDialog):
         col = 0
         for item in items:
             item_button = QToolButton()
-            text = f"{item['name']}\n₹{item['price_per_kg']:.2f}/kg"
+            
+            # Display total price (with tax) for user
+            total_price = item.get('total_price', item.get('base_price', item.get('price_per_kg', 0)))
+            text = f"{item['name']}\n₹{total_price:.2f}/kg"
+            if item.get('hsn_code'):
+                text += f"\nHSN: {item['hsn_code']}"
+            
             item_button.setText(text)
             item_button.setFont(QFont("Arial", 12))
             item_button.setMinimumHeight(180)
             item_button.setMinimumWidth(180)
             item_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+            
             # If image exists, set as icon (large, on top)
             if getattr(sys, 'frozen', False):
                 # Running as a PyInstaller bundle
@@ -250,7 +310,10 @@ class CreateBillWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Create Bill")
-        self.setGeometry(100, 100, 1200, 800)
+        self.setGeometry(100, 100, 1400, 900)
+        
+        # Set size policy for responsive design
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         self.db = Database()
         self.thermal_printer = ThermalPrinter()
@@ -260,6 +323,8 @@ class CreateBillWindow(QMainWindow):
         self.total_amount = 0.0
         self.total_items = 0
         self.total_weight = 0.0
+        self.total_sgst = 0.0
+        self.total_cgst = 0.0
         
         self.init_ui()
         
@@ -276,7 +341,80 @@ class CreateBillWindow(QMainWindow):
         main_layout = QHBoxLayout()
         central_widget.setLayout(main_layout)
         
-        # Left panel - Item input
+        # Left panel - Bill display
+        left_panel = QWidget()
+        left_layout = QVBoxLayout()
+        left_panel.setLayout(left_layout)
+        
+        # Bill table
+        bill_label = QLabel("Current Bill:")
+        bill_label.setFont(QFont("Arial", 14, QFont.Bold))
+        left_layout.addWidget(bill_label)
+        
+        self.bill_table = QTableWidget()
+        self.bill_table.setColumnCount(9)
+        self.bill_table.setHorizontalHeaderLabels([
+            "Item Name", "HSN", "Qty", "Base Price", "SGST%", "CGST%", "Final Price", "Actions", "Remove"
+        ])
+        self.bill_table.setAlternatingRowColors(True)
+        left_layout.addWidget(self.bill_table)
+        
+        header = self.bill_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.Stretch)  # Item Name
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # HSN
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Qty
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Base Price
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # SGST%
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # CGST%
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Final Price
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # Actions
+        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # Remove
+        
+        # Totals panel
+        totals_frame = QFrame()
+        totals_frame.setFrameStyle(QFrame.Box)
+        totals_layout = QVBoxLayout()
+        totals_frame.setLayout(totals_layout)
+        
+        self.items_count_label = QLabel("Total Items: 0")
+        self.items_count_label.setFont(QFont("Arial", 12, QFont.Bold))
+        totals_layout.addWidget(self.items_count_label)
+        
+        self.total_sgst_label = QLabel("Total SGST: ₹0.00")
+        self.total_sgst_label.setFont(QFont("Arial", 12))
+        totals_layout.addWidget(self.total_sgst_label)
+        
+        self.total_cgst_label = QLabel("Total CGST: ₹0.00")
+        self.total_cgst_label.setFont(QFont("Arial", 12))
+        totals_layout.addWidget(self.total_cgst_label)
+        
+        self.total_amount_label = QLabel("Total Amount: ₹0.00")
+        self.total_amount_label.setFont(QFont("Arial", 14, QFont.Bold))
+        self.total_amount_label.setStyleSheet("color: #e74c3c;")
+        totals_layout.addWidget(self.total_amount_label)
+        
+        left_layout.addWidget(totals_frame)
+        
+        # Finish button
+        finish_btn = QPushButton("Finish & Print Bill")
+        finish_btn.setFont(QFont("Arial", 14, QFont.Bold))
+        finish_btn.setMinimumHeight(60)
+        finish_btn.clicked.connect(self.finish_bill)
+        finish_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                padding: 15px;
+            }
+            QPushButton:hover {
+                background-color: #2ecc71;
+            }
+        """)
+        left_layout.addWidget(finish_btn)
+        
+        # Right panel - Item input
         right_panel = QWidget()
         right_layout = QVBoxLayout()
         right_panel.setLayout(right_layout)
@@ -314,69 +452,27 @@ class CreateBillWindow(QMainWindow):
         
         right_layout.addStretch()
         
-        # Right panel - Bill display
-        left_panel = QWidget()
-        left_layout = QVBoxLayout()
-        left_panel.setLayout(left_layout)
-        
-        # Bill table
-        bill_label = QLabel("Current Bill:")
-        bill_label.setFont(QFont("Arial", 14, QFont.Bold))
-        left_layout.addWidget(bill_label)
-        
-        self.bill_table = QTableWidget()
-        self.bill_table.setColumnCount(6)
-        self.bill_table.setHorizontalHeaderLabels([
-            "Item Name", "Quantity", "Unit Price", "Subtotal", "Actions", "Remove"
-        ])
-        self.bill_table.setAlternatingRowColors(True)
-        left_layout.addWidget(self.bill_table)
-        
-        header = self.bill_table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Stretch)
-        
-        # Totals panel
-        totals_frame = QFrame()
-        totals_frame.setFrameStyle(QFrame.Box)
-        totals_layout = QVBoxLayout()
-        totals_frame.setLayout(totals_layout)
-        
-        self.items_count_label = QLabel("Total Items: 0")
-        self.items_count_label.setFont(QFont("Arial", 12, QFont.Bold))
-        totals_layout.addWidget(self.items_count_label)
-        
-        self.total_amount_label = QLabel("Total Amount: ₹0.00")
-        self.total_amount_label.setFont(QFont("Arial", 14, QFont.Bold))
-        self.total_amount_label.setStyleSheet("color: #e74c3c;")
-        totals_layout.addWidget(self.total_amount_label)
-        
-        left_layout.addWidget(totals_frame)
-        
-        # Finish button
-        finish_btn = QPushButton("Finish & Print Bill")
-        finish_btn.setFont(QFont("Arial", 14, QFont.Bold))
-        finish_btn.setMinimumHeight(60)
-        finish_btn.clicked.connect(self.finish_bill)
-        finish_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #27ae60;
-                color: white;
-                border: none;
-                border-radius: 10px;
-                padding: 15px;
-            }
-            QPushButton:hover {
-                background-color: #2ecc71;
-            }
-        """)
-        left_layout.addWidget(finish_btn)
-        
         # Add panels to main layout
         main_layout.addWidget(left_panel, 2)
         main_layout.addWidget(right_panel, 1)
         
         # Focus on barcode input
         self.barcode_input.setFocus()
+        
+        # Set responsive styles
+        self.setStyleSheet("""
+            QTableWidget {
+                font-size: 12px;
+            }
+            QTableWidget::item {
+                padding: 5px;
+                font-size: 12px;
+            }
+            QHeaderView::section {
+                font-size: 12px;
+                padding: 5px;
+            }
+        """)
     
     def on_barcode_input(self, text):
         """Handle barcode input with timer for keyboard wedge scanner"""
@@ -402,22 +498,40 @@ class CreateBillWindow(QMainWindow):
         for existing_item in self.bill_items:
             if existing_item.get('item_type') == 'barcode' and existing_item.get('barcode') == barcode:
                 existing_item['quantity'] += 1
-                existing_item['subtotal'] = existing_item['quantity'] * existing_item['unit_price']
+                self.calculate_item_totals(existing_item)
                 self.update_bill_display()
                 return
         
-        # Add new item
+        # Add new item with GST calculations
+        base_price = item.get('base_price', item.get('price', 0))
+        sgst_percent = item.get('sgst_percent', 0)
+        cgst_percent = item.get('cgst_percent', 0)
+        
         bill_item = {
             'name': item['name'],
+            'hsn_code': item.get('hsn_code', ''),
             'quantity': 1,
-            'unit_price': item['price'],
-            'subtotal': item['price'],
+            'base_price': base_price,
+            'sgst_percent': sgst_percent,
+            'cgst_percent': cgst_percent,
             'item_type': 'barcode',
             'barcode': barcode
         }
         
+        self.calculate_item_totals(bill_item)
         self.bill_items.append(bill_item)
         self.update_bill_display()
+    
+    def calculate_item_totals(self, item):
+        """Calculate SGST, CGST, and final price for an item"""
+        base_amount = item['quantity'] * item['base_price']
+        sgst_amount = base_amount * item['sgst_percent'] / 100
+        cgst_amount = base_amount * item['cgst_percent'] / 100
+        final_price = base_amount + sgst_amount + cgst_amount
+        
+        item['sgst_amount'] = sgst_amount
+        item['cgst_amount'] = cgst_amount
+        item['final_price'] = final_price
     
     def add_loose_items(self):
         """Add loose items"""
@@ -427,12 +541,15 @@ class CreateBillWindow(QMainWindow):
             if item_dialog.exec_() == QDialog.Accepted:
                 bill_item = {
                     'name': dialog.selected_item['name'],
+                    'hsn_code': dialog.selected_item.get('hsn_code', ''),
                     'quantity': item_dialog.quantity,
-                    'unit_price': item_dialog.price_per_kg,
-                    'subtotal': item_dialog.quantity * item_dialog.price_per_kg,
+                    'base_price': item_dialog.base_price,
+                    'sgst_percent': item_dialog.sgst_percent,
+                    'cgst_percent': item_dialog.cgst_percent,
                     'item_type': 'loose'
                 }
                 
+                self.calculate_item_totals(bill_item)
                 self.bill_items.append(bill_item)
                 self.update_bill_display()
     
@@ -442,25 +559,33 @@ class CreateBillWindow(QMainWindow):
         
         total_amount = 0
         total_items = len(self.bill_items)
+        total_sgst = 0
+        total_cgst = 0
         
         for row, item in enumerate(self.bill_items):
             # Item name
             self.bill_table.setItem(row, 0, QTableWidgetItem(item['name']))
             
+            # HSN Code
+            self.bill_table.setItem(row, 1, QTableWidgetItem(item.get('hsn_code', '')))
+            
             # Quantity with +/- buttons
             quantity_widget = QWidget()
             quantity_layout = QHBoxLayout()
-            quantity_layout.setContentsMargins(5, 0, 5, 0)
+            quantity_layout.setContentsMargins(2, 0, 2, 0)
             
             minus_btn = QPushButton("-")
-            minus_btn.setMaximumWidth(30)
+            minus_btn.setMaximumWidth(25)
+            minus_btn.setMaximumHeight(25)
             minus_btn.clicked.connect(lambda checked, r=row: self.decrease_quantity(r))
             
             quantity_label = QLabel(f"{item['quantity']:.2f}")
             quantity_label.setAlignment(Qt.AlignCenter)
+            quantity_label.setMinimumWidth(40)
             
             plus_btn = QPushButton("+")
-            plus_btn.setMaximumWidth(30)
+            plus_btn.setMaximumWidth(25)
+            plus_btn.setMaximumHeight(25)
             plus_btn.clicked.connect(lambda checked, r=row: self.increase_quantity(r))
             
             quantity_layout.addWidget(minus_btn)
@@ -468,13 +593,19 @@ class CreateBillWindow(QMainWindow):
             quantity_layout.addWidget(plus_btn)
             quantity_widget.setLayout(quantity_layout)
             
-            self.bill_table.setCellWidget(row, 1, quantity_widget)
+            self.bill_table.setCellWidget(row, 2, quantity_widget)
             
-            # Unit price
-            self.bill_table.setItem(row, 2, QTableWidgetItem(f"₹{item['unit_price']:.2f}"))
+            # Base price
+            self.bill_table.setItem(row, 3, QTableWidgetItem(f"₹{item['base_price']:.2f}"))
             
-            # Subtotal
-            self.bill_table.setItem(row, 3, QTableWidgetItem(f"₹{item['subtotal']:.2f}"))
+            # SGST %
+            self.bill_table.setItem(row, 4, QTableWidgetItem(f"{item['sgst_percent']:.1f}%"))
+            
+            # CGST %
+            self.bill_table.setItem(row, 5, QTableWidgetItem(f"{item['cgst_percent']:.1f}%"))
+            
+            # Final price
+            self.bill_table.setItem(row, 6, QTableWidgetItem(f"₹{item['final_price']:.2f}"))
             
             # Actions (Edit)
             edit_btn = QPushButton("Edit")
@@ -483,37 +614,59 @@ class CreateBillWindow(QMainWindow):
                     background-color: #3498db;
                     color: white;
                     border: none;
-                    border-radius: 5px;
-                    padding: 5px 15px;
+                    border-radius: 3px;
+                    padding: 3px 10px;
+                    font-size: 10px;
                 }
                 QPushButton:hover {
                     background-color: #2980b9;
                 }
             """)
             edit_btn.clicked.connect(lambda checked, r=row: self.edit_item(r))
-            self.bill_table.setCellWidget(row, 4, edit_btn)
+            self.bill_table.setCellWidget(row, 7, edit_btn)
             
             # Remove button
             remove_btn = QPushButton("Remove")
-            remove_btn.setStyleSheet("background-color: #e74c3c; color: white;")
+            remove_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #e74c3c;
+                    color: white;
+                    border: none;
+                    border-radius: 3px;
+                    padding: 3px 10px;
+                    font-size: 10px;
+                }
+                QPushButton:hover {
+                    background-color: #c0392b;
+                }
+            """)
             remove_btn.clicked.connect(lambda checked, r=row: self.remove_item(r))
-            self.bill_table.setCellWidget(row, 5, remove_btn)
+            self.bill_table.setCellWidget(row, 8, remove_btn)
             
             # Calculate totals
-            total_amount += item['subtotal']
+            total_amount += item['final_price']
+            total_sgst += item['sgst_amount']
+            total_cgst += item['cgst_amount']
         
         # Update totals display
         self.total_amount = total_amount
         self.total_items = total_items
+        self.total_sgst = total_sgst
+        self.total_cgst = total_cgst
         
         self.items_count_label.setText(f"Total Items: {total_items}")
+        self.total_sgst_label.setText(f"Total SGST: ₹{total_sgst:.2f}")
+        self.total_cgst_label.setText(f"Total CGST: ₹{total_cgst:.2f}")
         self.total_amount_label.setText(f"Total Amount: ₹{total_amount:.2f}")
     
     def increase_quantity(self, row):
         """Increase item quantity"""
         if row < len(self.bill_items):
-            self.bill_items[row]['quantity'] += 1 if self.bill_items[row]['item_type'] == 'barcode' else 0.1
-            self.bill_items[row]['subtotal'] = self.bill_items[row]['quantity'] * self.bill_items[row]['unit_price']
+            if self.bill_items[row]['item_type'] == 'barcode':
+                self.bill_items[row]['quantity'] += 1
+            else:
+                self.bill_items[row]['quantity'] += 0.1
+            self.calculate_item_totals(self.bill_items[row])
             self.update_bill_display()
     
     def decrease_quantity(self, row):
@@ -522,16 +675,16 @@ class CreateBillWindow(QMainWindow):
             if self.bill_items[row]['item_type'] == 'barcode':
                 if self.bill_items[row]['quantity'] > 1:
                     self.bill_items[row]['quantity'] -= 1
-                    self.bill_items[row]['subtotal'] = self.bill_items[row]['quantity'] * self.bill_items[row]['unit_price']
+                    self.calculate_item_totals(self.bill_items[row])
                     self.update_bill_display()
             else:  # loose item
                 if self.bill_items[row]['quantity'] > 0.1:
                     self.bill_items[row]['quantity'] -= 0.1
-                    self.bill_items[row]['subtotal'] = self.bill_items[row]['quantity'] * self.bill_items[row]['unit_price']
+                    self.calculate_item_totals(self.bill_items[row])
                     self.update_bill_display()
     
     def edit_item(self, row):
-        """Edit item quantity or price"""
+        """Edit item quantity"""
         if row >= len(self.bill_items):
             return
         
@@ -546,7 +699,7 @@ class CreateBillWindow(QMainWindow):
         
         if ok:
             item['quantity'] = quantity
-            item['subtotal'] = quantity * item['unit_price']
+            self.calculate_item_totals(item)
             self.update_bill_display()
     
     def remove_item(self, row):
@@ -561,8 +714,11 @@ class CreateBillWindow(QMainWindow):
             QMessageBox.warning(self, "Error", "Please add items to the bill first!")
             return
         
+        # Get customer names for autocomplete
+        customer_names = self.db.get_customer_names()
+        
         # Get customer information
-        customer_dialog = CustomerInfoDialog(self)
+        customer_dialog = CustomerInfoDialog(customer_names, self)
         if customer_dialog.exec_() != QDialog.Accepted:
             return
         
@@ -572,7 +728,8 @@ class CreateBillWindow(QMainWindow):
         # Save bill to database
         bill_id = self.db.save_bill(
             customer_name, customer_phone, self.bill_items,
-            self.total_amount, self.total_items, self.total_weight
+            self.total_amount, self.total_items, self.total_weight,
+            self.total_sgst, self.total_cgst
         )
         
         # Prepare bill data for printing
@@ -583,6 +740,8 @@ class CreateBillWindow(QMainWindow):
             'total_amount': self.total_amount,
             'total_items': self.total_items,
             'total_weight': self.total_weight,
+            'total_sgst': self.total_sgst,
+            'total_cgst': self.total_cgst,
             'items': self.bill_items
         }
         
@@ -606,6 +765,33 @@ class CreateBillWindow(QMainWindow):
         self.bill_items = []
         self.update_bill_display()
         self.barcode_input.setFocus()
+
+    def resizeEvent(self, event):
+        """Handle window resize events"""
+        super().resizeEvent(event)
+        # Adjust font sizes based on window size
+        width = self.width()
+        if width < 1200:
+            font_size = 10
+        elif width < 1600:
+            font_size = 12
+        else:
+            font_size = 14
+        
+        # Update table font sizes
+        self.bill_table.setStyleSheet(f"""
+            QTableWidget {{
+                font-size: {font_size}px;
+            }}
+            QTableWidget::item {{
+                padding: 5px;
+                font-size: {font_size}px;
+            }}
+            QHeaderView::section {{
+                font-size: {font_size}px;
+                padding: 5px;
+            }}
+        """)
 
     def changeEvent(self, event):
         if event.type() == QEvent.WindowStateChange:

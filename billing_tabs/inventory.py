@@ -4,7 +4,8 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QLineEdit, QTableWidget, 
                              QTableWidgetItem, QTabWidget, QDialog, QGridLayout,
                              QDoubleSpinBox, QMessageBox, QFileDialog, QComboBox,
-                             QHeaderView, QAbstractItemView, QDialogButtonBox)
+                             QHeaderView, QAbstractItemView, QDialogButtonBox,
+                             QSpinBox, QSizePolicy, QApplication)
 from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtGui import QFont, QPixmap
 from data_base.database import Database
@@ -16,7 +17,7 @@ class BarcodeItemDialog(QDialog):
         self.item_data = item_data
         self.setWindowTitle("Add/Edit Barcode Item" if not item_data else "Edit Barcode Item")
         self.setModal(True)
-        self.resize(400, 300)
+        self.resize(500, 600)
         
         self.init_ui()
         
@@ -26,26 +27,73 @@ class BarcodeItemDialog(QDialog):
     def init_ui(self):
         layout = QVBoxLayout()
         
+        # Create form layout
+        form_layout = QGridLayout()
+        
         # Barcode
-        layout.addWidget(QLabel("Barcode:"))
+        form_layout.addWidget(QLabel("Barcode:"), 0, 0)
         self.barcode_input = QLineEdit()
         self.barcode_input.setFont(QFont("Arial", 12))
-        layout.addWidget(self.barcode_input)
+        form_layout.addWidget(self.barcode_input, 0, 1)
         
         # Item Name
-        layout.addWidget(QLabel("Item Name:"))
+        form_layout.addWidget(QLabel("Item Name:"), 1, 0)
         self.name_input = QLineEdit()
         self.name_input.setFont(QFont("Arial", 12))
-        layout.addWidget(self.name_input)
+        form_layout.addWidget(self.name_input, 1, 1)
         
-        # Price
-        layout.addWidget(QLabel("Price (₹):"))
-        self.price_input = QDoubleSpinBox()
-        self.price_input.setMinimum(0.01)
-        self.price_input.setMaximum(99999.99)
-        self.price_input.setDecimals(2)
-        self.price_input.setValue(1.00)
-        layout.addWidget(self.price_input)
+        # HSN Code
+        form_layout.addWidget(QLabel("HSN Code:"), 2, 0)
+        self.hsn_input = QLineEdit()
+        self.hsn_input.setFont(QFont("Arial", 12))
+        form_layout.addWidget(self.hsn_input, 2, 1)
+        
+        # Quantity
+        form_layout.addWidget(QLabel("Quantity:"), 3, 0)
+        self.quantity_input = QSpinBox()
+        self.quantity_input.setMinimum(0)
+        self.quantity_input.setMaximum(999999)
+        self.quantity_input.setValue(0)
+        form_layout.addWidget(self.quantity_input, 3, 1)
+        
+        # Base Price
+        form_layout.addWidget(QLabel("Base Price (₹):"), 4, 0)
+        self.base_price_input = QDoubleSpinBox()
+        self.base_price_input.setMinimum(0.01)
+        self.base_price_input.setMaximum(99999.99)
+        self.base_price_input.setDecimals(2)
+        self.base_price_input.setValue(1.00)
+        self.base_price_input.valueChanged.connect(self.calculate_total_price)
+        form_layout.addWidget(self.base_price_input, 4, 1)
+        
+        # SGST %
+        form_layout.addWidget(QLabel("SGST (%):"), 5, 0)
+        self.sgst_input = QDoubleSpinBox()
+        self.sgst_input.setMinimum(0.0)
+        self.sgst_input.setMaximum(50.0)
+        self.sgst_input.setDecimals(2)
+        self.sgst_input.setValue(0.0)
+        self.sgst_input.valueChanged.connect(self.calculate_total_price)
+        form_layout.addWidget(self.sgst_input, 5, 1)
+        
+        # CGST %
+        form_layout.addWidget(QLabel("CGST (%):"), 6, 0)
+        self.cgst_input = QDoubleSpinBox()
+        self.cgst_input.setMinimum(0.0)
+        self.cgst_input.setMaximum(50.0)
+        self.cgst_input.setDecimals(2)
+        self.cgst_input.setValue(0.0)
+        self.cgst_input.valueChanged.connect(self.calculate_total_price)
+        form_layout.addWidget(self.cgst_input, 6, 1)
+        
+        # Total Price (calculated)
+        form_layout.addWidget(QLabel("Total Price (₹):"), 7, 0)
+        self.total_price_label = QLabel("₹1.00")
+        self.total_price_label.setFont(QFont("Arial", 12, QFont.Bold))
+        self.total_price_label.setStyleSheet("color: #e74c3c; padding: 5px; border: 1px solid #ccc;")
+        form_layout.addWidget(self.total_price_label, 7, 1)
+        
+        layout.addLayout(form_layout)
         
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -54,20 +102,40 @@ class BarcodeItemDialog(QDialog):
         layout.addWidget(button_box)
         
         self.setLayout(layout)
+        
+        # Initial calculation
+        self.calculate_total_price()
+    
+    def calculate_total_price(self):
+        """Calculate and display total price"""
+        base_price = self.base_price_input.value()
+        sgst_percent = self.sgst_input.value()
+        cgst_percent = self.cgst_input.value()
+        
+        total_price = base_price + (base_price * sgst_percent / 100) + (base_price * cgst_percent / 100)
+        self.total_price_label.setText(f"₹{total_price:.2f}")
     
     def load_item_data(self):
         """Load existing item data"""
         if self.item_data:
             self.barcode_input.setText(self.item_data['barcode'])
             self.name_input.setText(self.item_data['name'])
-            self.price_input.setValue(self.item_data['price'])
+            self.hsn_input.setText(self.item_data.get('hsn_code', ''))
+            self.quantity_input.setValue(self.item_data.get('quantity', 0))
+            self.base_price_input.setValue(self.item_data.get('base_price', self.item_data.get('price', 0)))
+            self.sgst_input.setValue(self.item_data.get('sgst_percent', 0))
+            self.cgst_input.setValue(self.item_data.get('cgst_percent', 0))
     
     def get_item_data(self):
         """Get item data from form"""
         return {
             'barcode': self.barcode_input.text().strip(),
             'name': self.name_input.text().strip(),
-            'price': self.price_input.value()
+            'hsn_code': self.hsn_input.text().strip(),
+            'quantity': self.quantity_input.value(),
+            'base_price': self.base_price_input.value(),
+            'sgst_percent': self.sgst_input.value(),
+            'cgst_percent': self.cgst_input.value()
         }
     
     def accept(self):
@@ -91,7 +159,7 @@ class LooseItemDialog(QDialog):
         self.item_data = item_data
         self.setWindowTitle("Add/Edit Loose Item")
         self.setModal(True)
-        self.resize(450, 350)
+        self.resize(500, 700)
         
         self.init_ui()
         
@@ -101,31 +169,76 @@ class LooseItemDialog(QDialog):
     def init_ui(self):
         layout = QVBoxLayout()
         
+        # Create form layout
+        form_layout = QGridLayout()
+        
         # Category
-        layout.addWidget(QLabel("Category:"))
+        form_layout.addWidget(QLabel("Category:"), 0, 0)
         self.category_combo = QComboBox()
         self.category_combo.setFont(QFont("Arial", 12))
         for category in self.categories:
             self.category_combo.addItem(category['name'], category['id'])
-        layout.addWidget(self.category_combo)
+        form_layout.addWidget(self.category_combo, 0, 1)
         
         # Item Name
-        layout.addWidget(QLabel("Item Name:"))
+        form_layout.addWidget(QLabel("Item Name:"), 1, 0)
         self.name_input = QLineEdit()
         self.name_input.setFont(QFont("Arial", 12))
-        layout.addWidget(self.name_input)
+        form_layout.addWidget(self.name_input, 1, 1)
         
-        # Price per kg
-        layout.addWidget(QLabel("Price per kg (₹):"))
-        self.price_input = QDoubleSpinBox()
-        self.price_input.setMinimum(0.01)
-        self.price_input.setMaximum(99999.99)
-        self.price_input.setDecimals(2)
-        self.price_input.setValue(1.00)
-        layout.addWidget(self.price_input)
+        # HSN Code
+        form_layout.addWidget(QLabel("HSN Code:"), 2, 0)
+        self.hsn_input = QLineEdit()
+        self.hsn_input.setFont(QFont("Arial", 12))
+        form_layout.addWidget(self.hsn_input, 2, 1)
+        
+        # Quantity
+        form_layout.addWidget(QLabel("Quantity:"), 3, 0)
+        self.quantity_input = QSpinBox()
+        self.quantity_input.setMinimum(0)
+        self.quantity_input.setMaximum(999999)
+        self.quantity_input.setValue(0)
+        form_layout.addWidget(self.quantity_input, 3, 1)
+        
+        # Base Price per kg
+        form_layout.addWidget(QLabel("Base Price per kg (₹):"), 4, 0)
+        self.base_price_input = QDoubleSpinBox()
+        self.base_price_input.setMinimum(0.01)
+        self.base_price_input.setMaximum(99999.99)
+        self.base_price_input.setDecimals(2)
+        self.base_price_input.setValue(1.00)
+        self.base_price_input.valueChanged.connect(self.calculate_total_price)
+        form_layout.addWidget(self.base_price_input, 4, 1)
+        
+        # SGST %
+        form_layout.addWidget(QLabel("SGST (%):"), 5, 0)
+        self.sgst_input = QDoubleSpinBox()
+        self.sgst_input.setMinimum(0.0)
+        self.sgst_input.setMaximum(50.0)
+        self.sgst_input.setDecimals(2)
+        self.sgst_input.setValue(0.0)
+        self.sgst_input.valueChanged.connect(self.calculate_total_price)
+        form_layout.addWidget(self.sgst_input, 5, 1)
+        
+        # CGST %
+        form_layout.addWidget(QLabel("CGST (%):"), 6, 0)
+        self.cgst_input = QDoubleSpinBox()
+        self.cgst_input.setMinimum(0.0)
+        self.cgst_input.setMaximum(50.0)
+        self.cgst_input.setDecimals(2)
+        self.cgst_input.setValue(0.0)
+        self.cgst_input.valueChanged.connect(self.calculate_total_price)
+        form_layout.addWidget(self.cgst_input, 6, 1)
+        
+        # Total Price (calculated)
+        form_layout.addWidget(QLabel("Total Price per kg (₹):"), 7, 0)
+        self.total_price_label = QLabel("₹1.00")
+        self.total_price_label.setFont(QFont("Arial", 12, QFont.Bold))
+        self.total_price_label.setStyleSheet("color: #e74c3c; padding: 5px; border: 1px solid #ccc;")
+        form_layout.addWidget(self.total_price_label, 7, 1)
         
         # Image
-        layout.addWidget(QLabel("Image (optional):"))
+        form_layout.addWidget(QLabel("Image (optional):"), 8, 0)
         image_layout = QHBoxLayout()
         self.image_path_input = QLineEdit()
         self.image_path_input.setFont(QFont("Arial", 12))
@@ -136,7 +249,11 @@ class LooseItemDialog(QDialog):
         browse_btn.clicked.connect(self.browse_image)
         image_layout.addWidget(browse_btn)
         
-        layout.addLayout(image_layout)
+        image_widget = QWidget()
+        image_widget.setLayout(image_layout)
+        form_layout.addWidget(image_widget, 8, 1)
+        
+        layout.addLayout(form_layout)
         
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -145,6 +262,18 @@ class LooseItemDialog(QDialog):
         layout.addWidget(button_box)
         
         self.setLayout(layout)
+        
+        # Initial calculation
+        self.calculate_total_price()
+    
+    def calculate_total_price(self):
+        """Calculate and display total price"""
+        base_price = self.base_price_input.value()
+        sgst_percent = self.sgst_input.value()
+        cgst_percent = self.cgst_input.value()
+        
+        total_price = base_price + (base_price * sgst_percent / 100) + (base_price * cgst_percent / 100)
+        self.total_price_label.setText(f"₹{total_price:.2f}")
     
     def browse_image(self):
         """Browse for image file and copy to images folder if not already there"""
@@ -186,9 +315,13 @@ class LooseItemDialog(QDialog):
                     break
             
             self.name_input.setText(self.item_data['name'])
-            self.price_input.setValue(self.item_data['price_per_kg'])
+            self.hsn_input.setText(self.item_data.get('hsn_code', ''))
+            self.quantity_input.setValue(self.item_data.get('quantity', 0))
+            self.base_price_input.setValue(self.item_data.get('base_price', self.item_data.get('price_per_kg', 0)))
+            self.sgst_input.setValue(self.item_data.get('sgst_percent', 0))
+            self.cgst_input.setValue(self.item_data.get('cgst_percent', 0))
             
-            if self.item_data['image_path']:
+            if self.item_data.get('image_path'):
                 self.image_path_input.setText(self.item_data['image_path'])
     
     def get_item_data(self):
@@ -196,7 +329,11 @@ class LooseItemDialog(QDialog):
         return {
             'category_id': self.category_combo.currentData(),
             'name': self.name_input.text().strip(),
-            'price_per_kg': self.price_input.value(),
+            'hsn_code': self.hsn_input.text().strip(),
+            'quantity': self.quantity_input.value(),
+            'base_price': self.base_price_input.value(),
+            'sgst_percent': self.sgst_input.value(),
+            'cgst_percent': self.cgst_input.value(),
             'image_path': self.image_path_input.text().strip() or None
         }
     
@@ -262,7 +399,10 @@ class InventoryWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Inventory Management")
-        self.setGeometry(100, 100, 1200, 800)
+        self.setGeometry(100, 100, 1400, 900)
+        
+        # Set size policy for responsive design
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         self.db = Database()
         
@@ -314,17 +454,18 @@ class InventoryWindow(QMainWindow):
             QTableWidget {
                 background-color: white;
                 gridline-color: #dee2e6;
-                font-size: 30px;
+                font-size: 12px;
             }
             QTableWidget::item {
                 padding: 8px;
-                font-size: 30px;
+                font-size: 12px;
             }
             QHeaderView::section {
                 background-color: #e9ecef;
                 padding: 8px;
                 font-weight: bold;
                 border: 1px solid #dee2e6;
+                font-size: 12px;
             }
         """)
     
@@ -376,9 +517,9 @@ class InventoryWindow(QMainWindow):
         
         # Table
         self.barcode_table = QTableWidget()
-        self.barcode_table.setColumnCount(5)
+        self.barcode_table.setColumnCount(10)
         self.barcode_table.setHorizontalHeaderLabels([
-            "ID", "Barcode", "Name", "Price", "Actions"
+            "ID", "Barcode", "Name", "HSN Code", "Quantity", "Base Price", "SGST %", "CGST %", "Total Price", "Actions"
         ])
         
         # Table settings
@@ -390,9 +531,13 @@ class InventoryWindow(QMainWindow):
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # ID
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Barcode
         header.setSectionResizeMode(2, QHeaderView.Stretch)  # Name
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Price
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Actions
-        header.resizeSection(4, 120)
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # HSN Code
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Quantity
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Base Price
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # SGST %
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # CGST %
+        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # Total Price
+        header.setSectionResizeMode(9, QHeaderView.ResizeToContents)  # Actions
         
         layout.addWidget(self.barcode_table)
     
@@ -478,9 +623,9 @@ class InventoryWindow(QMainWindow):
         
         # Table
         self.loose_table = QTableWidget()
-        self.loose_table.setColumnCount(6)
+        self.loose_table.setColumnCount(11)
         self.loose_table.setHorizontalHeaderLabels([
-            "ID", "Category", "Name", "Price/kg", "Image", "Actions"
+            "ID", "Category", "Name", "HSN Code", "Quantity", "Base Price/kg", "SGST %", "CGST %", "Total Price/kg", "Image", "Actions"
         ])
         
         # Table settings
@@ -492,10 +637,14 @@ class InventoryWindow(QMainWindow):
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # ID
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Category
         header.setSectionResizeMode(2, QHeaderView.Stretch)  # Name
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Price/kg
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Image
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Actions
-        header.resizeSection(5, 120)
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # HSN Code
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Quantity
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Base Price/kg
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # SGST %
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # CGST %
+        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # Total Price/kg
+        header.setSectionResizeMode(9, QHeaderView.ResizeToContents)  # Image
+        header.setSectionResizeMode(10, QHeaderView.ResizeToContents)  # Actions
         
         layout.addWidget(self.loose_table)
     
@@ -526,8 +675,25 @@ class InventoryWindow(QMainWindow):
             # Name
             self.barcode_table.setItem(row, 2, QTableWidgetItem(item['name']))
             
-            # Price
-            self.barcode_table.setItem(row, 3, QTableWidgetItem(f"₹{item['price']:.2f}"))
+            # HSN Code
+            self.barcode_table.setItem(row, 3, QTableWidgetItem(item.get('hsn_code', '')))
+            
+            # Quantity
+            self.barcode_table.setItem(row, 4, QTableWidgetItem(str(item.get('quantity', 0))))
+            
+            # Base Price
+            base_price = item.get('base_price', item.get('price', 0))
+            self.barcode_table.setItem(row, 5, QTableWidgetItem(f"₹{base_price:.2f}"))
+            
+            # SGST %
+            self.barcode_table.setItem(row, 6, QTableWidgetItem(f"{item.get('sgst_percent', 0):.2f}%"))
+            
+            # CGST %
+            self.barcode_table.setItem(row, 7, QTableWidgetItem(f"{item.get('cgst_percent', 0):.2f}%"))
+            
+            # Total Price
+            total_price = item.get('total_price', base_price)
+            self.barcode_table.setItem(row, 8, QTableWidgetItem(f"₹{total_price:.2f}"))
             
             # Actions
             actions_widget = QWidget()
@@ -541,10 +707,10 @@ class InventoryWindow(QMainWindow):
                     color: white;
                     border: none;
                     border-radius: 5px;
-                    padding: 8px 20px;
-                    font-size: 16px;
-                    min-width: 60px;
-                    min-height: 32px;
+                    padding: 5px 15px;
+                    font-size: 10px;
+                    min-width: 50px;
+                    min-height: 25px;
                 }
                 QPushButton:hover {
                     background-color: #138496;
@@ -560,10 +726,10 @@ class InventoryWindow(QMainWindow):
                     color: white;
                     border: none;
                     border-radius: 5px;
-                    padding: 8px 20px;
-                    font-size: 16px;
-                    min-width: 60px;
-                    min-height: 32px;
+                    padding: 5px 15px;
+                    font-size: 10px;
+                    min-width: 50px;
+                    min-height: 25px;
                 }
                 QPushButton:hover {
                     background-color: #c0392b;
@@ -573,7 +739,7 @@ class InventoryWindow(QMainWindow):
             actions_layout.addWidget(delete_btn)
             
             actions_widget.setLayout(actions_layout)
-            self.barcode_table.setCellWidget(row, 4, actions_widget)
+            self.barcode_table.setCellWidget(row, 9, actions_widget)
     
     def load_loose_items(self):
         """Load loose items"""
@@ -606,12 +772,29 @@ class InventoryWindow(QMainWindow):
             # Name
             self.loose_table.setItem(row, 2, QTableWidgetItem(item['name']))
             
-            # Price/kg
-            self.loose_table.setItem(row, 3, QTableWidgetItem(f"₹{item['price_per_kg']:.2f}"))
+            # HSN Code
+            self.loose_table.setItem(row, 3, QTableWidgetItem(item.get('hsn_code', '')))
+            
+            # Quantity
+            self.loose_table.setItem(row, 4, QTableWidgetItem(str(item.get('quantity', 0))))
+            
+            # Base Price/kg
+            base_price = item.get('base_price', item.get('price_per_kg', 0))
+            self.loose_table.setItem(row, 5, QTableWidgetItem(f"₹{base_price:.2f}"))
+            
+            # SGST %
+            self.loose_table.setItem(row, 6, QTableWidgetItem(f"{item.get('sgst_percent', 0):.2f}%"))
+            
+            # CGST %
+            self.loose_table.setItem(row, 7, QTableWidgetItem(f"{item.get('cgst_percent', 0):.2f}%"))
+            
+            # Total Price/kg
+            total_price = item.get('total_price', base_price)
+            self.loose_table.setItem(row, 8, QTableWidgetItem(f"₹{total_price:.2f}"))
             
             # Image
-            image_text = "Yes" if item['image_path'] else "No"
-            self.loose_table.setItem(row, 4, QTableWidgetItem(image_text))
+            image_text = "Yes" if item.get('image_path') else "No"
+            self.loose_table.setItem(row, 9, QTableWidgetItem(image_text))
             
             # Actions
             actions_widget = QWidget()
@@ -625,10 +808,10 @@ class InventoryWindow(QMainWindow):
                     color: white;
                     border: none;
                     border-radius: 5px;
-                    padding: 8px 20px;
-                    font-size: 16px;
-                    min-width: 60px;
-                    min-height: 32px;
+                    padding: 5px 15px;
+                    font-size: 10px;
+                    min-width: 50px;
+                    min-height: 25px;
                 }
                 QPushButton:hover {
                     background-color: #138496;
@@ -644,10 +827,10 @@ class InventoryWindow(QMainWindow):
                     color: white;
                     border: none;
                     border-radius: 5px;
-                    padding: 8px 20px;
-                    font-size: 16px;
-                    min-width: 60px;
-                    min-height: 32px;
+                    padding: 5px 15px;
+                    font-size: 10px;
+                    min-width: 50px;
+                    min-height: 25px;
                 }
                 QPushButton:hover {
                     background-color: #c0392b;
@@ -657,14 +840,15 @@ class InventoryWindow(QMainWindow):
             actions_layout.addWidget(delete_btn)
             
             actions_widget.setLayout(actions_layout)
-            self.loose_table.setCellWidget(row, 5, actions_widget)
+            self.loose_table.setCellWidget(row, 10, actions_widget)
     
     def add_barcode_item(self):
         """Add new barcode item"""
         dialog = BarcodeItemDialog(parent=self)
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_item_data()
-            if self.db.add_barcode_item(data['barcode'], data['name'], data['price']):
+            if self.db.add_barcode_item(data['barcode'], data['name'], data['hsn_code'], 
+                                       data['quantity'], data['base_price'], data['sgst_percent'], data['cgst_percent']):
                 QMessageBox.information(self, "Success", "Barcode item added successfully!")
                 self.load_barcode_items()
             else:
@@ -675,7 +859,8 @@ class InventoryWindow(QMainWindow):
         dialog = BarcodeItemDialog(item_data, parent=self)
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_item_data()
-            if self.db.update_barcode_item(item_data['id'], data['barcode'], data['name'], data['price']):
+            if self.db.update_barcode_item(item_data['id'], data['barcode'], data['name'], data['hsn_code'],
+                                          data['quantity'], data['base_price'], data['sgst_percent'], data['cgst_percent']):
                 QMessageBox.information(self, "Success", "Barcode item updated successfully!")
                 self.load_barcode_items()
             else:
@@ -745,7 +930,8 @@ class InventoryWindow(QMainWindow):
         dialog = LooseItemDialog(categories, parent=self)
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_item_data()
-            if self.db.add_loose_item(data['category_id'], data['name'], data['price_per_kg'], data['image_path']):
+            if self.db.add_loose_item(data['category_id'], data['name'], data['hsn_code'], data['quantity'],
+                                     data['base_price'], data['sgst_percent'], data['cgst_percent'], data['image_path']):
                 QMessageBox.information(self, "Success", "Loose item added successfully!")
                 self.load_loose_items()
             else:
@@ -757,7 +943,8 @@ class InventoryWindow(QMainWindow):
         dialog = LooseItemDialog(categories, item_data, parent=self)
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_item_data()
-            if self.db.update_loose_item(item_data['id'], data['name'], data['price_per_kg'], data['image_path']):
+            if self.db.update_loose_item(item_data['id'], data['name'], data['hsn_code'], data['quantity'],
+                                        data['base_price'], data['sgst_percent'], data['cgst_percent'], data['image_path']):
                 QMessageBox.information(self, "Success", "Loose item updated successfully!")
                 self.load_loose_items()
             else:
@@ -777,6 +964,22 @@ class InventoryWindow(QMainWindow):
                 self.load_loose_items()
             else:
                 QMessageBox.warning(self, "Error", "Failed to delete loose item.")
+
+    def resizeEvent(self, event):
+        """Handle window resize events"""
+        super().resizeEvent(event)
+        # Adjust font sizes based on window size
+        width = self.width()
+        if width < 1200:
+            font_size = 10
+        elif width < 1600:
+            font_size = 12
+        else:
+            font_size = 14
+        
+        # Update table font sizes
+        self.barcode_table.setStyleSheet(f"font-size: {font_size}px;")
+        self.loose_table.setStyleSheet(f"font-size: {font_size}px;")
 
     def changeEvent(self, event):
         if event.type() == QEvent.WindowStateChange:

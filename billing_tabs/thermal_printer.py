@@ -55,59 +55,8 @@ class ThermalPrinter:
             print(f"Test failed: {e}")
             return False
     
-    def format_bill_receipt(self, bill_data: Dict) -> str:
-        """Format bill data for thermal printer"""
-        receipt = ""
-        
-        # Header
-        receipt += f"{self.shop_name}\n"
-        receipt += f"{self.shop_address}\n"
-        receipt += f"Phone: {self.shop_phone}\n"
-        receipt += "-" * 32 + "\n"
-        
-        # Bill details
-        receipt += f"Bill ID: {bill_data['id']}\n"
-        receipt += f"Date: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
-        receipt += f"Customer: {bill_data['customer_name']}\n"
-        if bill_data.get('customer_phone'):
-            receipt += f"Phone: {bill_data['customer_phone']}\n"
-        receipt += "-" * 32 + "\n"
-        
-        # Items header
-        receipt += "Item               Qty  Price\n"
-        receipt += "-" * 32 + "\n"
-        
-        # Items
-        for item in bill_data['items']:
-            name = item['name']
-            if len(name) > 18:
-                name = name[:15] + "..."
-            
-            qty = f"{item['quantity']:.2f}"
-            if item['item_type'] == 'loose':
-                qty += "kg"
-            
-            price = f"₹{item['subtotal']:.2f}"
-            
-            # Format line with proper spacing
-            receipt += f"{name:<18} {qty:<4} {price:>8}\n"
-        
-        receipt += "-" * 32 + "\n"
-        
-        # Totals
-        receipt += f"Total Items: {bill_data['total_items']}\n"
-        if bill_data.get('total_weight', 0) > 0:
-            receipt += f"Total Weight: {bill_data['total_weight']:.2f}kg\n"
-        receipt += f"TOTAL: ₹{bill_data['total_amount']:.2f}\n"
-        
-        receipt += "-" * 32 + "\n"
-        receipt += "Thank you for shopping!\n"
-        receipt += "Visit us again!\n"
-        
-        return receipt
-    
     def print_bill(self, bill_data: Dict) -> bool:
-        """Print a formatted bill"""
+        """Print a formatted bill with GST details"""
         if not self.is_connected or not self.printer:
             return False
         
@@ -132,34 +81,74 @@ class ThermalPrinter:
             
             # Items header
             self.printer.set(bold=True)
-            self.printer.text("Item               Qty  Price\n")
+            self.printer.text("Item Details\n")
             self.printer.set(bold=False)
             self.printer.text("-" * 32 + "\n")
             
-            # Items
+            # Items with GST breakdown
+            total_base_amount = 0
+            total_sgst_amount = 0
+            total_cgst_amount = 0
+            
             for item in bill_data['items']:
                 name = item['name']
-                if len(name) > 18:
-                    name = name[:15] + "..."
+                if len(name) > 30:
+                    name = name[:27] + "..."
                 
-                qty = f"{item['quantity']:.2f}"
+                # Item name and HSN
+                self.printer.text(f"{name}\n")
+                if item.get('hsn_code'):
+                    self.printer.text(f"HSN: {item['hsn_code']}\n")
+                
+                # Quantity and base price
+                qty_text = f"{item['quantity']:.2f}"
                 if item['item_type'] == 'loose':
-                    qty += "kg"
+                    qty_text += "kg"
                 
-                price = f"₹{item['subtotal']:.2f}"
+                base_amount = item['quantity'] * item['base_price']
+                sgst_amount = item.get('sgst_amount', 0)
+                cgst_amount = item.get('cgst_amount', 0)
+                final_price = item.get('final_price', base_amount + sgst_amount + cgst_amount)
                 
-                # Format line with proper spacing
-                self.printer.text(f"{name:<18} {qty:<4} {price:>8}\n")
+                self.printer.text(f"Qty: {qty_text} x ₹{item['base_price']:.2f} = ₹{base_amount:.2f}\n")
+                
+                # GST details if applicable
+                if item.get('sgst_percent', 0) > 0 or item.get('cgst_percent', 0) > 0:
+                    if sgst_amount > 0:
+                        self.printer.text(f"SGST ({item['sgst_percent']:.1f}%): ₹{sgst_amount:.2f}\n")
+                    if cgst_amount > 0:
+                        self.printer.text(f"CGST ({item['cgst_percent']:.1f}%): ₹{cgst_amount:.2f}\n")
+                
+                self.printer.text(f"Total: ₹{final_price:.2f}\n")
+                self.printer.text("-" * 16 + "\n")
+                
+                # Add to totals
+                total_base_amount += base_amount
+                total_sgst_amount += sgst_amount
+                total_cgst_amount += cgst_amount
             
             self.printer.text("-" * 32 + "\n")
             
-            # Totals
+            # Bill summary
             self.printer.set(bold=True)
+            self.printer.text("BILL SUMMARY\n")
+            self.printer.set(bold=False)
+            
             self.printer.text(f"Total Items: {bill_data['total_items']}\n")
             if bill_data.get('total_weight', 0) > 0:
                 self.printer.text(f"Total Weight: {bill_data['total_weight']:.2f}kg\n")
-            self.printer.text(f"TOTAL: ₹{bill_data['total_amount']:.2f}\n")
-            self.printer.set(bold=False)
+            
+            self.printer.text(f"Base Amount: ₹{total_base_amount:.2f}\n")
+            
+            if total_sgst_amount > 0:
+                self.printer.text(f"Total SGST: ₹{total_sgst_amount:.2f}\n")
+            if total_cgst_amount > 0:
+                self.printer.text(f"Total CGST: ₹{total_cgst_amount:.2f}\n")
+            
+            self.printer.text("-" * 32 + "\n")
+            self.printer.set(bold=True, double_height=True)
+            self.printer.text(f"GRAND TOTAL: ₹{bill_data['total_amount']:.2f}\n")
+            self.printer.set(bold=False, double_height=False)
             
             self.printer.text("-" * 32 + "\n")
             self.printer.set(align='center')
@@ -187,6 +176,7 @@ class ThermalPrinter:
             self.printer.text("-" * 32 + "\n")
             self.printer.text(f"Date: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
             self.printer.text("Printer is working correctly!\n")
+            self.printer.text("GST-enabled billing system\n")
             self.printer.text("-" * 32 + "\n")
             self.printer.cut()
             return True

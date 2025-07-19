@@ -23,13 +23,18 @@ class Database:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        # Create barcode_items table
+        # Create barcode_items table with new GST fields
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS barcode_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 barcode TEXT UNIQUE NOT NULL,
                 name TEXT NOT NULL,
-                price REAL NOT NULL,
+                hsn_code TEXT DEFAULT '',
+                quantity INTEGER DEFAULT 0,
+                base_price REAL NOT NULL,
+                sgst_percent REAL DEFAULT 0,
+                cgst_percent REAL DEFAULT 0,
+                total_price REAL NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -43,13 +48,18 @@ class Database:
             )
         ''')
         
-        # Create loose_items table
+        # Create loose_items table with new GST fields
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS loose_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 category_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
-                price_per_kg REAL NOT NULL,
+                hsn_code TEXT DEFAULT '',
+                quantity INTEGER DEFAULT 0,
+                base_price REAL NOT NULL,
+                sgst_percent REAL DEFAULT 0,
+                cgst_percent REAL DEFAULT 0,
+                total_price REAL NOT NULL,
                 image_path TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (category_id) REFERENCES loose_categories (id)
@@ -65,30 +75,110 @@ class Database:
                 total_amount REAL NOT NULL,
                 total_items INTEGER NOT NULL,
                 total_weight REAL DEFAULT 0,
+                total_sgst REAL DEFAULT 0,
+                total_cgst REAL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
-        # Create bill_items table
+        # Create bill_items table with GST fields
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS bill_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 bill_id INTEGER NOT NULL,
                 item_name TEXT NOT NULL,
+                hsn_code TEXT DEFAULT '',
                 quantity REAL NOT NULL,
-                unit_price REAL NOT NULL,
-                subtotal REAL NOT NULL,
+                base_price REAL NOT NULL,
+                sgst_percent REAL DEFAULT 0,
+                cgst_percent REAL DEFAULT 0,
+                sgst_amount REAL DEFAULT 0,
+                cgst_amount REAL DEFAULT 0,
+                final_price REAL NOT NULL,
                 item_type TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (bill_id) REFERENCES bills (id)
             )
         ''')
         
+        # Migrate existing data if needed
+        self._migrate_existing_data(cursor)
+        
         # Insert default categories and items
         self._insert_default_data(cursor)
         
         conn.commit()
         conn.close()
+    
+    def _migrate_existing_data(self, cursor):
+        """Migrate existing data to new schema"""
+        # Check if old columns exist and migrate
+        cursor.execute("PRAGMA table_info(barcode_items)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'hsn_code' not in columns:
+            # Add new columns to barcode_items
+            cursor.execute('ALTER TABLE barcode_items ADD COLUMN hsn_code TEXT DEFAULT ""')
+            cursor.execute('ALTER TABLE barcode_items ADD COLUMN quantity INTEGER DEFAULT 0')
+            cursor.execute('ALTER TABLE barcode_items ADD COLUMN sgst_percent REAL DEFAULT 0')
+            cursor.execute('ALTER TABLE barcode_items ADD COLUMN cgst_percent REAL DEFAULT 0')
+            
+            # Rename price to base_price and add total_price
+            try:
+                cursor.execute('ALTER TABLE barcode_items RENAME COLUMN price TO base_price')
+            except:
+                pass
+            
+            try:
+                cursor.execute('ALTER TABLE barcode_items ADD COLUMN total_price REAL')
+                cursor.execute('UPDATE barcode_items SET total_price = base_price WHERE total_price IS NULL')
+            except:
+                pass
+        
+        # Similar migration for loose_items
+        cursor.execute("PRAGMA table_info(loose_items)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'hsn_code' not in columns:
+            cursor.execute('ALTER TABLE loose_items ADD COLUMN hsn_code TEXT DEFAULT ""')
+            cursor.execute('ALTER TABLE loose_items ADD COLUMN quantity INTEGER DEFAULT 0')
+            cursor.execute('ALTER TABLE loose_items ADD COLUMN sgst_percent REAL DEFAULT 0')
+            cursor.execute('ALTER TABLE loose_items ADD COLUMN cgst_percent REAL DEFAULT 0')
+            
+            try:
+                cursor.execute('ALTER TABLE loose_items RENAME COLUMN price_per_kg TO base_price')
+            except:
+                pass
+            
+            try:
+                cursor.execute('ALTER TABLE loose_items ADD COLUMN total_price REAL')
+                cursor.execute('UPDATE loose_items SET total_price = base_price WHERE total_price IS NULL')
+            except:
+                pass
+        
+        # Migrate bills table
+        cursor.execute("PRAGMA table_info(bills)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'total_sgst' not in columns:
+            cursor.execute('ALTER TABLE bills ADD COLUMN total_sgst REAL DEFAULT 0')
+            cursor.execute('ALTER TABLE bills ADD COLUMN total_cgst REAL DEFAULT 0')
+        
+        # Migrate bill_items table
+        cursor.execute("PRAGMA table_info(bill_items)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'hsn_code' not in columns:
+            cursor.execute('ALTER TABLE bill_items ADD COLUMN hsn_code TEXT DEFAULT ""')
+            cursor.execute('ALTER TABLE bill_items ADD COLUMN base_price REAL DEFAULT 0')
+            cursor.execute('ALTER TABLE bill_items ADD COLUMN sgst_percent REAL DEFAULT 0')
+            cursor.execute('ALTER TABLE bill_items ADD COLUMN cgst_percent REAL DEFAULT 0')
+            cursor.execute('ALTER TABLE bill_items ADD COLUMN sgst_amount REAL DEFAULT 0')
+            cursor.execute('ALTER TABLE bill_items ADD COLUMN cgst_amount REAL DEFAULT 0')
+            cursor.execute('ALTER TABLE bill_items ADD COLUMN final_price REAL DEFAULT 0')
+            
+            # Update existing records
+            cursor.execute('UPDATE bill_items SET base_price = unit_price, final_price = subtotal WHERE base_price = 0')
     
     def _insert_default_data(self, cursor):
         """Insert default categories and items if they don't exist"""
@@ -101,50 +191,58 @@ class Database:
                 cursor.execute('''
                     INSERT OR IGNORE INTO loose_categories (name) VALUES (?)
                 ''', (category,))
-            # Insert some default loose items
+            
+            # Insert some default loose items with GST
             default_items = [
-                ('Rice', 'Basmati Rice', 80.0),
-                ('Rice', 'Sona Masoori Rice', 65.0),
-                ('Dals', 'Toor Dal', 120.0),
-                ('Dals', 'Moong Dal', 110.0),
-                ('Spices', 'Turmeric Powder', 200.0),
-                ('Spices', 'Red Chilli Powder', 180.0),
-                ('Oil', 'Sunflower Oil', 150.0),
-                ('Oil', 'Coconut Oil', 180.0),
+                ('Rice', 'Basmati Rice', '1006', 80.0, 2.5, 2.5),
+                ('Rice', 'Sona Masoori Rice', '1006', 65.0, 2.5, 2.5),
+                ('Dals', 'Toor Dal', '0713', 120.0, 2.5, 2.5),
+                ('Dals', 'Moong Dal', '0713', 110.0, 2.5, 2.5),
+                ('Spices', 'Turmeric Powder', '0910', 200.0, 2.5, 2.5),
+                ('Spices', 'Red Chilli Powder', '0904', 180.0, 2.5, 2.5),
+                ('Oil', 'Sunflower Oil', '1512', 150.0, 2.5, 2.5),
+                ('Oil', 'Coconut Oil', '1513', 180.0, 2.5, 2.5),
             ]
-            for category_name, item_name, price in default_items:
+            for category_name, item_name, hsn, base_price, sgst, cgst in default_items:
+                total_price = base_price + (base_price * sgst / 100) + (base_price * cgst / 100)
                 cursor.execute('''
-                    INSERT OR IGNORE INTO loose_items (category_id, name, price_per_kg)
-                    SELECT id, ?, ? FROM loose_categories WHERE name = ?
-                ''', (item_name, price, category_name))
+                    INSERT OR IGNORE INTO loose_items (category_id, name, hsn_code, base_price, sgst_percent, cgst_percent, total_price)
+                    SELECT id, ?, ?, ?, ?, ?, ? FROM loose_categories WHERE name = ?
+                ''', (item_name, hsn, base_price, sgst, cgst, total_price, category_name))
+        
         # Insert default barcode items if table is empty
         cursor.execute('SELECT COUNT(*) FROM barcode_items')
         if cursor.fetchone()[0] == 0:
             default_barcodes = [
-                ('12345678', 'Kit Kat', 10.0),
-                ('23456789', 'Dairy Milk', 20.0),
-                ('34567890', '5 Star', 10.0),
-                ('45678901', 'Perk', 10.0),
-                ('56789012', 'Munch', 5.0),
+                ('12345678', 'Kit Kat', '1704', 10.0, 6.0, 6.0),
+                ('23456789', 'Dairy Milk', '1704', 20.0, 6.0, 6.0),
+                ('34567890', '5 Star', '1704', 10.0, 6.0, 6.0),
+                ('45678901', 'Perk', '1704', 10.0, 6.0, 6.0),
+                ('56789012', 'Munch', '1704', 5.0, 6.0, 6.0),
             ]
-            for barcode, name, price in default_barcodes:
+            for barcode, name, hsn, base_price, sgst, cgst in default_barcodes:
+                total_price = base_price + (base_price * sgst / 100) + (base_price * cgst / 100)
                 cursor.execute('''
-                    INSERT OR IGNORE INTO barcode_items (barcode, name, price) VALUES (?, ?, ?)
-                ''', (barcode, name, price))
+                    INSERT OR IGNORE INTO barcode_items (barcode, name, hsn_code, base_price, sgst_percent, cgst_percent, total_price) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (barcode, name, hsn, base_price, sgst, cgst, total_price))
     
     def get_connection(self):
         """Get database connection"""
         return sqlite3.connect(self.db_path)
     
     # Barcode Items Methods
-    def add_barcode_item(self, barcode: str, name: str, price: float) -> bool:
+    def add_barcode_item(self, barcode: str, name: str, hsn_code: str, quantity: int, 
+                        base_price: float, sgst_percent: float, cgst_percent: float) -> bool:
         """Add a new barcode item"""
         try:
+            total_price = base_price + (base_price * sgst_percent / 100) + (base_price * cgst_percent / 100)
             conn = self.get_connection()
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO barcode_items (barcode, name, price) VALUES (?, ?, ?)
-            ''', (barcode, name, price))
+                INSERT INTO barcode_items (barcode, name, hsn_code, quantity, base_price, sgst_percent, cgst_percent, total_price) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (barcode, name, hsn_code, quantity, base_price, sgst_percent, cgst_percent, total_price))
             conn.commit()
             conn.close()
             return True
@@ -156,7 +254,8 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id, barcode, name, price FROM barcode_items WHERE barcode = ?
+            SELECT id, barcode, name, hsn_code, quantity, base_price, sgst_percent, cgst_percent, total_price 
+            FROM barcode_items WHERE barcode = ?
         ''', (barcode,))
         result = cursor.fetchone()
         conn.close()
@@ -166,7 +265,12 @@ class Database:
                 'id': result[0],
                 'barcode': result[1],
                 'name': result[2],
-                'price': result[3]
+                'hsn_code': result[3],
+                'quantity': result[4],
+                'base_price': result[5],
+                'sgst_percent': result[6],
+                'cgst_percent': result[7],
+                'total_price': result[8]
             }
         return None
     
@@ -175,7 +279,8 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id, barcode, name, price FROM barcode_items ORDER BY name
+            SELECT id, barcode, name, hsn_code, quantity, base_price, sgst_percent, cgst_percent, total_price 
+            FROM barcode_items ORDER BY name
         ''')
         results = cursor.fetchall()
         conn.close()
@@ -185,19 +290,27 @@ class Database:
                 'id': row[0],
                 'barcode': row[1],
                 'name': row[2],
-                'price': row[3]
+                'hsn_code': row[3],
+                'quantity': row[4],
+                'base_price': row[5],
+                'sgst_percent': row[6],
+                'cgst_percent': row[7],
+                'total_price': row[8]
             }
             for row in results
         ]
     
-    def update_barcode_item(self, item_id: int, barcode: str, name: str, price: float) -> bool:
+    def update_barcode_item(self, item_id: int, barcode: str, name: str, hsn_code: str, 
+                           quantity: int, base_price: float, sgst_percent: float, cgst_percent: float) -> bool:
         """Update barcode item"""
         try:
+            total_price = base_price + (base_price * sgst_percent / 100) + (base_price * cgst_percent / 100)
             conn = self.get_connection()
             cursor = conn.cursor()
             cursor.execute('''
-                UPDATE barcode_items SET barcode = ?, name = ?, price = ? WHERE id = ?
-            ''', (barcode, name, price, item_id))
+                UPDATE barcode_items SET barcode = ?, name = ?, hsn_code = ?, quantity = ?, 
+                base_price = ?, sgst_percent = ?, cgst_percent = ?, total_price = ? WHERE id = ?
+            ''', (barcode, name, hsn_code, quantity, base_price, sgst_percent, cgst_percent, total_price, item_id))
             conn.commit()
             conn.close()
             return True
@@ -232,8 +345,8 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id, name, price_per_kg, image_path FROM loose_items 
-            WHERE category_id = ? ORDER BY name
+            SELECT id, name, hsn_code, quantity, base_price, sgst_percent, cgst_percent, total_price, image_path 
+            FROM loose_items WHERE category_id = ? ORDER BY name
         ''', (category_id,))
         results = cursor.fetchall()
         conn.close()
@@ -242,8 +355,13 @@ class Database:
             {
                 'id': row[0],
                 'name': row[1],
-                'price_per_kg': row[2],
-                'image_path': row[3]
+                'hsn_code': row[2],
+                'quantity': row[3],
+                'base_price': row[4],
+                'sgst_percent': row[5],
+                'cgst_percent': row[6],
+                'total_price': row[7],
+                'image_path': row[8]
             }
             for row in results
         ]
@@ -260,29 +378,34 @@ class Database:
         except sqlite3.IntegrityError:
             return False
     
-    def add_loose_item(self, category_id: int, name: str, price_per_kg: float, image_path: str = None) -> bool:
+    def add_loose_item(self, category_id: int, name: str, hsn_code: str, quantity: int,
+                      base_price: float, sgst_percent: float, cgst_percent: float, image_path: str = None) -> bool:
         """Add a new loose item"""
         try:
+            total_price = base_price + (base_price * sgst_percent / 100) + (base_price * cgst_percent / 100)
             conn = self.get_connection()
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO loose_items (category_id, name, price_per_kg, image_path) 
-                VALUES (?, ?, ?, ?)
-            ''', (category_id, name, price_per_kg, image_path))
+                INSERT INTO loose_items (category_id, name, hsn_code, quantity, base_price, sgst_percent, cgst_percent, total_price, image_path) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (category_id, name, hsn_code, quantity, base_price, sgst_percent, cgst_percent, total_price, image_path))
             conn.commit()
             conn.close()
             return True
         except:
             return False
     
-    def update_loose_item(self, item_id: int, name: str, price_per_kg: float, image_path: str = None) -> bool:
+    def update_loose_item(self, item_id: int, name: str, hsn_code: str, quantity: int,
+                         base_price: float, sgst_percent: float, cgst_percent: float, image_path: str = None) -> bool:
         """Update loose item"""
         try:
+            total_price = base_price + (base_price * sgst_percent / 100) + (base_price * cgst_percent / 100)
             conn = self.get_connection()
             cursor = conn.cursor()
             cursor.execute('''
-                UPDATE loose_items SET name = ?, price_per_kg = ?, image_path = ? WHERE id = ?
-            ''', (name, price_per_kg, image_path, item_id))
+                UPDATE loose_items SET name = ?, hsn_code = ?, quantity = ?, base_price = ?, 
+                sgst_percent = ?, cgst_percent = ?, total_price = ?, image_path = ? WHERE id = ?
+            ''', (name, hsn_code, quantity, base_price, sgst_percent, cgst_percent, total_price, image_path, item_id))
             conn.commit()
             conn.close()
             return True
@@ -303,26 +426,29 @@ class Database:
     
     # Bills Methods
     def save_bill(self, customer_name: str, customer_phone: str, bill_items: List[Dict], 
-                  total_amount: float, total_items: int, total_weight: float) -> int:
+                  total_amount: float, total_items: int, total_weight: float, 
+                  total_sgst: float, total_cgst: float) -> int:
         """Save a new bill and return bill ID"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
         # Insert bill
         cursor.execute('''
-            INSERT INTO bills (customer_name, customer_phone, total_amount, total_items, total_weight)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (customer_name, customer_phone, total_amount, total_items, total_weight))
+            INSERT INTO bills (customer_name, customer_phone, total_amount, total_items, total_weight, total_sgst, total_cgst)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (customer_name, customer_phone, total_amount, total_items, total_weight, total_sgst, total_cgst))
         
         bill_id = cursor.lastrowid
         
         # Insert bill items
         for item in bill_items:
             cursor.execute('''
-                INSERT INTO bill_items (bill_id, item_name, quantity, unit_price, subtotal, item_type)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (bill_id, item['name'], item['quantity'], item['unit_price'], 
-                  item['subtotal'], item['item_type']))
+                INSERT INTO bill_items (bill_id, item_name, hsn_code, quantity, base_price, 
+                sgst_percent, cgst_percent, sgst_amount, cgst_amount, final_price, item_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (bill_id, item['name'], item['hsn_code'], item['quantity'], item['base_price'],
+                  item['sgst_percent'], item['cgst_percent'], item['sgst_amount'], 
+                  item['cgst_amount'], item['final_price'], item['item_type']))
         
         conn.commit()
         conn.close()
@@ -334,7 +460,7 @@ class Database:
         cursor = conn.cursor()
         cursor.execute('''
             SELECT id, customer_name, customer_phone, total_amount, total_items, 
-                   total_weight, created_at 
+                   total_weight, total_sgst, total_cgst, created_at 
             FROM bills ORDER BY created_at DESC
         ''')
         results = cursor.fetchall()
@@ -348,7 +474,9 @@ class Database:
                 'total_amount': row[3],
                 'total_items': row[4],
                 'total_weight': row[5],
-                'created_at': row[6]
+                'total_sgst': row[6],
+                'total_cgst': row[7],
+                'created_at': row[8]
             }
             for row in results
         ]
@@ -361,7 +489,7 @@ class Database:
         # Get bill details
         cursor.execute('''
             SELECT id, customer_name, customer_phone, total_amount, total_items, 
-                   total_weight, created_at 
+                   total_weight, total_sgst, total_cgst, created_at 
             FROM bills WHERE id = ?
         ''', (bill_id,))
         bill_result = cursor.fetchone()
@@ -372,7 +500,8 @@ class Database:
         
         # Get bill items
         cursor.execute('''
-            SELECT item_name, quantity, unit_price, subtotal, item_type
+            SELECT item_name, hsn_code, quantity, base_price, sgst_percent, cgst_percent, 
+            sgst_amount, cgst_amount, final_price, item_type
             FROM bill_items WHERE bill_id = ?
         ''', (bill_id,))
         items_results = cursor.fetchall()
@@ -386,14 +515,21 @@ class Database:
             'total_amount': bill_result[3],
             'total_items': bill_result[4],
             'total_weight': bill_result[5],
-            'created_at': bill_result[6],
+            'total_sgst': bill_result[6],
+            'total_cgst': bill_result[7],
+            'created_at': bill_result[8],
             'items': [
                 {
                     'name': row[0],
-                    'quantity': row[1],
-                    'unit_price': row[2],
-                    'subtotal': row[3],
-                    'item_type': row[4]
+                    'hsn_code': row[1],
+                    'quantity': row[2],
+                    'base_price': row[3],
+                    'sgst_percent': row[4],
+                    'cgst_percent': row[5],
+                    'sgst_amount': row[6],
+                    'cgst_amount': row[7],
+                    'final_price': row[8],
+                    'item_type': row[9]
                 }
                 for row in items_results
             ]
@@ -405,7 +541,7 @@ class Database:
         cursor = conn.cursor()
         cursor.execute('''
             SELECT id, customer_name, customer_phone, total_amount, total_items, 
-                   total_weight, created_at 
+                   total_weight, total_sgst, total_cgst, created_at 
             FROM bills WHERE customer_name LIKE ? ORDER BY created_at DESC
         ''', (f'%{customer_name}%',))
         results = cursor.fetchall()
@@ -419,7 +555,46 @@ class Database:
                 'total_amount': row[3],
                 'total_items': row[4],
                 'total_weight': row[5],
-                'created_at': row[6]
+                'total_sgst': row[6],
+                'total_cgst': row[7],
+                'created_at': row[8]
             }
             for row in results
         ]
+    
+    def get_bills_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+        """Get bills by date range"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, customer_name, customer_phone, total_amount, total_items, 
+                   total_weight, total_sgst, total_cgst, created_at 
+            FROM bills WHERE DATE(created_at) BETWEEN ? AND ? ORDER BY created_at DESC
+        ''', (start_date, end_date))
+        results = cursor.fetchall()
+        conn.close()
+        
+        return [
+            {
+                'id': row[0],
+                'customer_name': row[1],
+                'customer_phone': row[2],
+                'total_amount': row[3],
+                'total_items': row[4],
+                'total_weight': row[5],
+                'total_sgst': row[6],
+                'total_cgst': row[7],
+                'created_at': row[8]
+            }
+            for row in results
+        ]
+    
+    def get_customer_names(self) -> List[str]:
+        """Get all unique customer names for autocomplete"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT DISTINCT customer_name FROM bills ORDER BY customer_name')
+        results = cursor.fetchall()
+        conn.close()
+        
+        return [row[0] for row in results]

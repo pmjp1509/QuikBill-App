@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Main entry point for the Desktop Billing Application
+Main entry point for the Enhanced Desktop Billing Application with GST Support
 """
 
 import sys
@@ -20,21 +20,31 @@ def create_splash_screen():
     splash.setMask(splash_pixmap.mask())
     
     # Add text to splash screen
-    splash.showMessage("Loading Billing System...", Qt.AlignCenter, Qt.black)
+    splash.showMessage("Loading Enhanced GST Billing System...", Qt.AlignCenter, Qt.black)
     
     return splash
 
-def main():
-    """Main application entry point"""
+def setup_application():
+    """Setup application properties and DPI awareness"""
+    # Enable high DPI scaling
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+    
     app = QApplication(sys.argv)
     
     # Set application properties
-    app.setApplicationName("Desktop Billing System")
-    app.setApplicationVersion("1.0.0")
+    app.setApplicationName("Enhanced Desktop Billing System")
+    app.setApplicationVersion("2.0.0")
     app.setOrganizationName("Your Company")
     
-    # Set application style
+    # Set application style for better cross-platform appearance
     app.setStyle('Fusion')
+    
+    return app
+
+def main():
+    """Main application entry point"""
+    app = setup_application()
     
     # Create splash screen
     splash = create_splash_screen()
@@ -45,7 +55,7 @@ def main():
     
     try:
         # Initialize database
-        splash.showMessage("Initializing database...", Qt.AlignCenter, Qt.black)
+        splash.showMessage("Initializing database with GST support...", Qt.AlignCenter, Qt.black)
         app.processEvents()
         
         db = Database()
@@ -57,7 +67,7 @@ def main():
         main_window = HomeDashboard()
         
         # Show main window after a short delay
-        QTimer.singleShot(1000, lambda: [splash.finish(main_window), main_window.show()])
+        QTimer.singleShot(1500, lambda: [splash.finish(main_window), main_window.show()])
         
     except Exception as e:
         splash.close()
