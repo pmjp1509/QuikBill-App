@@ -1,0 +1,67 @@
+DESKTOP BILLING APPLICATION BUILD INSTRUCTIONS
+==============================================
+
+REQUIREMENTS:
+- Python 3.7 or higher
+- pip package manager
+- Windows OS (for .exe creation)
+
+INSTALLATION STEPS:
+1. Install Python dependencies:
+   pip install -r requirements.txt
+
+2. Test the application:
+   python main.py
+
+3. Build executable with PyInstaller:
+   
+   OPTION 1 - Simple build:
+   pyinstaller --onefile --windowed main.py
+
+   OPTION 2 - Advanced build with custom settings:
+   pyinstaller billing_app.spec
+
+   OPTION 3 - Command line build with all options:
+   pyinstaller --onefile --windowed --name "BillingSystem" --icon=icon.ico --add-data "*.db;." main.py
+
+THERMAL PRINTER SETUP:
+1. Install printer drivers
+2. Connect printer via USB
+3. Test printer connection in the application
+4. For network printers, use IP address configuration
+
+DEPLOYMENT:
+1. Copy the generated .exe file from dist/ folder
+2. The application will create billing.db automatically on first run
+3. No additional installation required on target machines
+
+TROUBLESHOOTING:
+- If printer not detected, check USB connection and drivers
+- For database issues, delete billing.db to reset
+- Run as Administrator if file permission issues occur
+
+FEATURES:
+✅ Barcode scanner support (keyboard wedge)
+✅ Thermal printer (ESC/POS 58mm)
+✅ Offline SQLite database
+✅ CSV export functionality
+✅ Inventory management
+✅ Bill history with search
+✅ Customer information tracking
+✅ Loose items with categories
+✅ Live bill calculation
+✅ Professional thermal receipts
+
+PRINTER COMPATIBILITY:
+- Epson TM-T20, TM-T82, TM-T88 series
+- Star TSP100, TSP650, TSP700 series
+- Citizen CT-S310, CT-S2000 series
+- Generic ESC/POS compatible printers
+
+SUPPORTED BARCODE FORMATS:
+- Code 128
+- Code 39
+- EAN-13
+- EAN-8
+- UPC-A
+- UPC-E
