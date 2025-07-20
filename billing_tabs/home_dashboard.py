@@ -11,7 +11,7 @@ class HomeDashboard(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Billing System - Home")
-        self.setGeometry(100, 100, 900, 700)
+        self.resize(900, 700)  # Use a smaller, safer default size
         
         # Set size policy for responsive design
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -83,7 +83,6 @@ class HomeDashboard(QMainWindow):
             }
             QPushButton:hover {
                 background-color: #2980b9;
-                transform: translateY(-2px);
             }
             QPushButton:pressed {
                 background-color: #21618c;
@@ -106,7 +105,6 @@ class HomeDashboard(QMainWindow):
             }
             QPushButton:hover {
                 background-color: #27ae60;
-                transform: translateY(-2px);
             }
             QPushButton:pressed {
                 background-color: #1e8449;
@@ -129,7 +127,6 @@ class HomeDashboard(QMainWindow):
             }
             QPushButton:hover {
                 background-color: #c0392b;
-                transform: translateY(-2px);
             }
             QPushButton:pressed {
                 background-color: #a93226;
@@ -210,7 +207,6 @@ class HomeDashboard(QMainWindow):
             }}
             QPushButton:hover {{
                 background-color: {hover_color};
-                transform: translateY(-2px);
             }}
             QPushButton:pressed {{
                 background-color: {pressed_color};

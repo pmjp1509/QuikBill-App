@@ -65,3 +65,16 @@ SUPPORTED BARCODE FORMATS:
 - EAN-8
 - UPC-A
 - UPC-E
+
+IMPORTANT NOTES (v2.1+):
+------------------------
+- All windows use `resize(width, height)` for safe default sizing. No more geometry warnings.
+- All unsupported Qt stylesheet properties (like `transform`) have been removed. If you see 'Unknown property transform', check for dynamic stylesheet updates.
+- When adding/editing inventory items, always enter the final price (including GST). Base price is auto-calculated.
+- Bills and bill history show items in a compact table (Name, Qty, Base, SGST, CGST, Total).
+- Bill summary shows average SGST% and CGST% instead of totals.
+
+TROUBLESHOOTING (NEW):
+----------------------
+- **Unknown property transform**: All `transform:` properties have been removed. If you still see this warning, check for dynamic stylesheet updates in your code.
+- **QWindowsWindow::setGeometry warnings**: All `setGeometry` calls have been replaced with `resize`. If you still see this warning, ensure you are not setting window sizes larger than your screen.

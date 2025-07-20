@@ -59,105 +59,67 @@ class ThermalPrinter:
         """Print a formatted bill with GST details"""
         if not self.is_connected or not self.printer:
             return False
-        
         try:
             # Set font and alignment
             self.printer.set(align='center', font='a', bold=True, double_height=True)
             self.printer.text(f"{self.shop_name}\n")
-            
             self.printer.set(align='center', font='a', bold=False, double_height=False)
             self.printer.text(f"{self.shop_address}\n")
             self.printer.text(f"Phone: {self.shop_phone}\n")
             self.printer.text("-" * 32 + "\n")
-            
             # Bill details
             self.printer.set(align='left', font='a', bold=False)
             self.printer.text(f"Bill ID: {bill_data['id']}\n")
             self.printer.text(f"Date: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
-            self.printer.text(f"Customer: {bill_data['customer_name']}\n")
-            if bill_data.get('customer_phone'):
-                self.printer.text(f"Phone: {bill_data['customer_phone']}\n")
             self.printer.text("-" * 32 + "\n")
-            
-            # Items header
+            # Items header as table
             self.printer.set(bold=True)
-            self.printer.text("Item Details\n")
+            self.printer.text(f"{'Name':<10}{'Qty':>5}{'Base':>7}{'SGST':>6}{'CGST':>6}{'Total':>8}\n")
             self.printer.set(bold=False)
             self.printer.text("-" * 32 + "\n")
-            
-            # Items with GST breakdown
+            # Items as table rows
             total_base_amount = 0
             total_sgst_amount = 0
             total_cgst_amount = 0
-            
             for item in bill_data['items']:
-                name = item['name']
-                if len(name) > 30:
-                    name = name[:27] + "..."
-                
-                # Item name and HSN
-                self.printer.text(f"{name}\n")
-                if item.get('hsn_code'):
-                    self.printer.text(f"HSN: {item['hsn_code']}\n")
-                
-                # Quantity and base price
-                qty_text = f"{item['quantity']:.2f}"
+                name = item['name'][:10] if len(item['name']) > 10 else item['name']
+                qty = f"{item['quantity']:.2f}"
                 if item['item_type'] == 'loose':
-                    qty_text += "kg"
-                
-                base_amount = item['quantity'] * item['base_price']
-                sgst_amount = item.get('sgst_amount', 0)
-                cgst_amount = item.get('cgst_amount', 0)
-                final_price = item.get('final_price', base_amount + sgst_amount + cgst_amount)
-                
-                self.printer.text(f"Qty: {qty_text} x ₹{item['base_price']:.2f} = ₹{base_amount:.2f}\n")
-                
-                # GST details if applicable
-                if item.get('sgst_percent', 0) > 0 or item.get('cgst_percent', 0) > 0:
-                    if sgst_amount > 0:
-                        self.printer.text(f"SGST ({item['sgst_percent']:.1f}%): ₹{sgst_amount:.2f}\n")
-                    if cgst_amount > 0:
-                        self.printer.text(f"CGST ({item['cgst_percent']:.1f}%): ₹{cgst_amount:.2f}\n")
-                
-                self.printer.text(f"Total: ₹{final_price:.2f}\n")
-                self.printer.text("-" * 16 + "\n")
-                
+                    qty += "kg"
+                base = f"{item['base_price']:.2f}"
+                sgst_amt = item.get('sgst_amount', 0)
+                cgst_amt = item.get('cgst_amount', 0)
+                sgst = f"{sgst_amt:.2f}" if sgst_amt > 0 else "-"
+                cgst = f"{cgst_amt:.2f}" if cgst_amt > 0 else "-"
+                total = f"{item.get('final_price', 0):.2f}"
+                self.printer.text(f"{name:<10}{qty:>5}{base:>7}{sgst:>6}{cgst:>6}{total:>8}\n")
                 # Add to totals
-                total_base_amount += base_amount
-                total_sgst_amount += sgst_amount
-                total_cgst_amount += cgst_amount
-            
+                total_base_amount += item['quantity'] * item['base_price']
+                total_sgst_amount += sgst_amt
+                total_cgst_amount += cgst_amt
             self.printer.text("-" * 32 + "\n")
-            
             # Bill summary
             self.printer.set(bold=True)
             self.printer.text("BILL SUMMARY\n")
             self.printer.set(bold=False)
-            
             self.printer.text(f"Total Items: {bill_data['total_items']}\n")
             if bill_data.get('total_weight', 0) > 0:
                 self.printer.text(f"Total Weight: {bill_data['total_weight']:.2f}kg\n")
-            
             self.printer.text(f"Base Amount: ₹{total_base_amount:.2f}\n")
-            
             if total_sgst_amount > 0:
                 self.printer.text(f"Total SGST: ₹{total_sgst_amount:.2f}\n")
             if total_cgst_amount > 0:
                 self.printer.text(f"Total CGST: ₹{total_cgst_amount:.2f}\n")
-            
             self.printer.text("-" * 32 + "\n")
             self.printer.set(bold=True, double_height=True)
             self.printer.text(f"GRAND TOTAL: ₹{bill_data['total_amount']:.2f}\n")
             self.printer.set(bold=False, double_height=False)
-            
             self.printer.text("-" * 32 + "\n")
             self.printer.set(align='center')
             self.printer.text("Thank you for shopping!\n")
             self.printer.text("Visit us again!\n")
-            
             # Cut paper
             self.printer.cut()
-            
             return True
         except Exception as e:
             print(f"Print failed: {e}")

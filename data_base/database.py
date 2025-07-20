@@ -30,7 +30,7 @@ class Database:
                 barcode TEXT UNIQUE NOT NULL,
                 name TEXT NOT NULL,
                 hsn_code TEXT DEFAULT '',
-                quantity INTEGER DEFAULT 0,
+                quantity INTEGER DEFAULT 1,
                 base_price REAL NOT NULL,
                 sgst_percent REAL DEFAULT 0,
                 cgst_percent REAL DEFAULT 0,
@@ -55,7 +55,7 @@ class Database:
                 category_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 hsn_code TEXT DEFAULT '',
-                quantity INTEGER DEFAULT 0,
+                quantity INTEGER DEFAULT 1,
                 base_price REAL NOT NULL,
                 sgst_percent REAL DEFAULT 0,
                 cgst_percent REAL DEFAULT 0,
@@ -203,8 +203,8 @@ class Database:
                 ('Oil', 'Sunflower Oil', '1512', 150.0, 2.5, 2.5),
                 ('Oil', 'Coconut Oil', '1513', 180.0, 2.5, 2.5),
             ]
-            for category_name, item_name, hsn, base_price, sgst, cgst in default_items:
-                total_price = base_price + (base_price * sgst / 100) + (base_price * cgst / 100)
+            for category_name, item_name, hsn, total_price, sgst, cgst in default_items:
+                base_price = total_price / (1 + (sgst + cgst) / 100)
                 cursor.execute('''
                     INSERT OR IGNORE INTO loose_items (category_id, name, hsn_code, base_price, sgst_percent, cgst_percent, total_price)
                     SELECT id, ?, ?, ?, ?, ?, ? FROM loose_categories WHERE name = ?
@@ -220,8 +220,8 @@ class Database:
                 ('45678901', 'Perk', '1704', 10.0, 6.0, 6.0),
                 ('56789012', 'Munch', '1704', 5.0, 6.0, 6.0),
             ]
-            for barcode, name, hsn, base_price, sgst, cgst in default_barcodes:
-                total_price = base_price + (base_price * sgst / 100) + (base_price * cgst / 100)
+            for barcode, name, hsn, total_price, sgst, cgst in default_barcodes:
+                base_price = total_price / (1 + (sgst + cgst) / 100)
                 cursor.execute('''
                     INSERT OR IGNORE INTO barcode_items (barcode, name, hsn_code, base_price, sgst_percent, cgst_percent, total_price) 
                     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -233,10 +233,10 @@ class Database:
     
     # Barcode Items Methods
     def add_barcode_item(self, barcode: str, name: str, hsn_code: str, quantity: int, 
-                        base_price: float, sgst_percent: float, cgst_percent: float) -> bool:
-        """Add a new barcode item"""
+                        total_price: float, sgst_percent: float, cgst_percent: float) -> bool:
+        """Add a new barcode item (user supplies final price)"""
         try:
-            total_price = base_price + (base_price * sgst_percent / 100) + (base_price * cgst_percent / 100)
+            base_price = total_price / (1 + (sgst_percent + cgst_percent) / 100)
             conn = self.get_connection()
             cursor = conn.cursor()
             cursor.execute('''
@@ -301,10 +301,10 @@ class Database:
         ]
     
     def update_barcode_item(self, item_id: int, barcode: str, name: str, hsn_code: str, 
-                           quantity: int, base_price: float, sgst_percent: float, cgst_percent: float) -> bool:
-        """Update barcode item"""
+                           quantity: int, total_price: float, sgst_percent: float, cgst_percent: float) -> bool:
+        """Update barcode item (user supplies final price)"""
         try:
-            total_price = base_price + (base_price * sgst_percent / 100) + (base_price * cgst_percent / 100)
+            base_price = total_price / (1 + (sgst_percent + cgst_percent) / 100)
             conn = self.get_connection()
             cursor = conn.cursor()
             cursor.execute('''
@@ -379,10 +379,10 @@ class Database:
             return False
     
     def add_loose_item(self, category_id: int, name: str, hsn_code: str, quantity: int,
-                      base_price: float, sgst_percent: float, cgst_percent: float, image_path: str = None) -> bool:
-        """Add a new loose item"""
+                      total_price: float, sgst_percent: float, cgst_percent: float, image_path: str = None) -> bool:
+        """Add a new loose item (user supplies final price)"""
         try:
-            total_price = base_price + (base_price * sgst_percent / 100) + (base_price * cgst_percent / 100)
+            base_price = total_price / (1 + (sgst_percent + cgst_percent) / 100)
             conn = self.get_connection()
             cursor = conn.cursor()
             cursor.execute('''
@@ -396,15 +396,14 @@ class Database:
             return False
     
     def update_loose_item(self, item_id: int, name: str, hsn_code: str, quantity: int,
-                         base_price: float, sgst_percent: float, cgst_percent: float, image_path: str = None) -> bool:
-        """Update loose item"""
+                         total_price: float, sgst_percent: float, cgst_percent: float, image_path: str = None) -> bool:
+        """Update loose item (user supplies final price)"""
         try:
-            total_price = base_price + (base_price * sgst_percent / 100) + (base_price * cgst_percent / 100)
+            base_price = total_price / (1 + (sgst_percent + cgst_percent) / 100)
             conn = self.get_connection()
             cursor = conn.cursor()
             cursor.execute('''
-                UPDATE loose_items SET name = ?, hsn_code = ?, quantity = ?, base_price = ?, 
-                sgst_percent = ?, cgst_percent = ?, total_price = ?, image_path = ? WHERE id = ?
+                UPDATE loose_items SET name = ?, hsn_code = ?, quantity = ?, base_price = ?, sgst_percent = ?, cgst_percent = ?, total_price = ?, image_path = ? WHERE id = ?
             ''', (name, hsn_code, quantity, base_price, sgst_percent, cgst_percent, total_price, image_path, item_id))
             conn.commit()
             conn.close()

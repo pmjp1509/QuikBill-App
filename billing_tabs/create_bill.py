@@ -79,27 +79,21 @@ class LooseItemDialog(QDialog):
         self.setWindowTitle(f"Add {item_data['name']}")
         self.setModal(True)
         self.resize(500, 400)
-        
         self.quantity = 0
-        self.base_price = item_data.get('base_price', item_data.get('price_per_kg', 0))
         self.sgst_percent = item_data.get('sgst_percent', 0)
         self.cgst_percent = item_data.get('cgst_percent', 0)
-        
+        self.base_price = 0
+        self.final_price = 0
         self.init_ui()
-    
+
     def init_ui(self):
         layout = QVBoxLayout()
-        
-        # Item name
         name_label = QLabel(f"Item: {self.item_data['name']}")
         name_label.setFont(QFont("Arial", 14, QFont.Bold))
         layout.addWidget(name_label)
-        
-        # HSN Code
         hsn_label = QLabel(f"HSN Code: {self.item_data.get('hsn_code', 'N/A')}")
         hsn_label.setFont(QFont("Arial", 12))
         layout.addWidget(hsn_label)
-        
         # Quantity
         layout.addWidget(QLabel("Quantity (kg):"))
         self.quantity_input = QDoubleSpinBox()
@@ -110,85 +104,72 @@ class LooseItemDialog(QDialog):
         self.quantity_input.setValue(1.0)
         self.quantity_input.valueChanged.connect(self.update_calculations)
         layout.addWidget(self.quantity_input)
-        
-        # Base price per kg
-        layout.addWidget(QLabel("Base Price per kg (₹):"))
-        self.base_price_input = QDoubleSpinBox()
-        self.base_price_input.setMinimum(0.01)
-        self.base_price_input.setMaximum(9999.99)
-        self.base_price_input.setDecimals(2)
-        self.base_price_input.setValue(self.base_price)
-        self.base_price_input.valueChanged.connect(self.update_calculations)
-        layout.addWidget(self.base_price_input)
-        
-        # SGST %
-        layout.addWidget(QLabel("SGST (%):"))
-        self.sgst_input = QDoubleSpinBox()
-        self.sgst_input.setMinimum(0.0)
-        self.sgst_input.setMaximum(50.0)
-        self.sgst_input.setDecimals(2)
-        self.sgst_input.setValue(self.sgst_percent)
-        self.sgst_input.valueChanged.connect(self.update_calculations)
-        layout.addWidget(self.sgst_input)
-        
-        # CGST %
-        layout.addWidget(QLabel("CGST (%):"))
-        self.cgst_input = QDoubleSpinBox()
-        self.cgst_input.setMinimum(0.0)
-        self.cgst_input.setMaximum(50.0)
-        self.cgst_input.setDecimals(2)
-        self.cgst_input.setValue(self.cgst_percent)
-        self.cgst_input.valueChanged.connect(self.update_calculations)
-        layout.addWidget(self.cgst_input)
-        
+        # Final Price (user input)
+        layout.addWidget(QLabel("Final Price per kg (₹):"))
+        self.final_price_input = QDoubleSpinBox()
+        self.final_price_input.setMinimum(0.01)
+        self.final_price_input.setMaximum(9999.99)
+        self.final_price_input.setDecimals(2)
+        self.final_price_input.setValue(self.item_data.get('total_price', self.item_data.get('base_price', self.item_data.get('price_per_kg', 0))))
+        self.final_price_input.valueChanged.connect(self.update_calculations)
+        layout.addWidget(self.final_price_input)
+        # Show SGST/CGST as labels (not editable)
+        sgst_label = QLabel(f"SGST (%): {self.sgst_percent}")
+        sgst_label.setFont(QFont("Arial", 12))
+        layout.addWidget(sgst_label)
+        cgst_label = QLabel(f"CGST (%): {self.cgst_percent}")
+        cgst_label.setFont(QFont("Arial", 12))
+        layout.addWidget(cgst_label)
+        # Base price display (read-only)
+        self.base_price_label = QLabel()
+        self.base_price_label.setFont(QFont("Arial", 12, QFont.Bold))
+        self.base_price_label.setStyleSheet("background-color: #f0f0f0; padding: 8px; border: 1px solid #ccc;")
+        layout.addWidget(self.base_price_label)
         # Calculations display
         self.calculations_label = QLabel()
         self.calculations_label.setFont(QFont("Arial", 12))
         self.calculations_label.setStyleSheet("background-color: #f0f0f0; padding: 10px; border: 1px solid #ccc;")
         layout.addWidget(self.calculations_label)
-        
         # Buttons
         button_layout = QHBoxLayout()
         add_button = QPushButton("Add to Bill")
         cancel_button = QPushButton("Cancel")
-        
         add_button.clicked.connect(self.accept_item)
         cancel_button.clicked.connect(self.reject)
-        
         button_layout.addWidget(add_button)
         button_layout.addWidget(cancel_button)
-        
         layout.addLayout(button_layout)
         self.setLayout(layout)
-        
-        # Initial calculation
         self.update_calculations()
-    
+
     def update_calculations(self):
         quantity = self.quantity_input.value()
-        base_price = self.base_price_input.value()
-        sgst_percent = self.sgst_input.value()
-        cgst_percent = self.cgst_input.value()
-        
+        final_price = self.final_price_input.value()
+        sgst_percent = self.sgst_percent
+        cgst_percent = self.cgst_percent
+        divisor = 1 + (sgst_percent + cgst_percent) / 100
+        base_price = final_price / divisor if divisor != 0 else 0
+        self.base_price = base_price
+        self.final_price = final_price
+        self.base_price_label.setText(f"Base Price per kg (calculated): ₹{base_price:.2f}")
         base_amount = quantity * base_price
         sgst_amount = base_amount * sgst_percent / 100
         cgst_amount = base_amount * cgst_percent / 100
         final_amount = base_amount + sgst_amount + cgst_amount
-        
         calculations_text = f"""
 Base Amount: ₹{base_amount:.2f}
 SGST ({sgst_percent}%): ₹{sgst_amount:.2f}
 CGST ({cgst_percent}%): ₹{cgst_amount:.2f}
 Final Amount: ₹{final_amount:.2f}
         """.strip()
-        
         self.calculations_label.setText(calculations_text)
-    
+
     def accept_item(self):
         self.quantity = self.quantity_input.value()
-        self.base_price = self.base_price_input.value()
-        self.sgst_percent = self.sgst_input.value()
-        self.cgst_percent = self.cgst_input.value()
+        self.base_price = self.base_price
+        self.final_price = self.final_price
+        self.sgst_percent = self.item_data.get('sgst_percent', 0)
+        self.cgst_percent = self.item_data.get('cgst_percent', 0)
         self.accept()
 
 class LooseCategoryDialog(QDialog):
@@ -310,7 +291,7 @@ class CreateBillWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Create Bill")
-        self.setGeometry(100, 100, 1400, 900)
+        self.resize(1000, 700)  # Use a smaller, safer default size
         
         # Set size policy for responsive design
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -544,8 +525,9 @@ class CreateBillWindow(QMainWindow):
                     'hsn_code': dialog.selected_item.get('hsn_code', ''),
                     'quantity': item_dialog.quantity,
                     'base_price': item_dialog.base_price,
-                    'sgst_percent': item_dialog.sgst_percent,
-                    'cgst_percent': item_dialog.cgst_percent,
+                    # Always use DB values for SGST/CGST
+                    'sgst_percent': dialog.selected_item.get('sgst_percent', 0),
+                    'cgst_percent': dialog.selected_item.get('cgst_percent', 0),
                     'item_type': 'loose'
                 }
                 
@@ -556,12 +538,14 @@ class CreateBillWindow(QMainWindow):
     def update_bill_display(self):
         """Update the bill table and totals"""
         self.bill_table.setRowCount(len(self.bill_items))
-        
         total_amount = 0
         total_items = len(self.bill_items)
         total_sgst = 0
         total_cgst = 0
-        
+        sgst_percent_sum = 0
+        cgst_percent_sum = 0
+        sgst_count = 0
+        cgst_count = 0
         for row, item in enumerate(self.bill_items):
             # Item name
             self.bill_table.setItem(row, 0, QTableWidgetItem(item['name']))
@@ -647,16 +631,22 @@ class CreateBillWindow(QMainWindow):
             total_amount += item['final_price']
             total_sgst += item['sgst_amount']
             total_cgst += item['cgst_amount']
-        
+            if item.get('sgst_percent', 0) > 0:
+                sgst_percent_sum += item['sgst_percent']
+                sgst_count += 1
+            if item.get('cgst_percent', 0) > 0:
+                cgst_percent_sum += item['cgst_percent']
+                cgst_count += 1
         # Update totals display
         self.total_amount = total_amount
         self.total_items = total_items
         self.total_sgst = total_sgst
         self.total_cgst = total_cgst
-        
         self.items_count_label.setText(f"Total Items: {total_items}")
-        self.total_sgst_label.setText(f"Total SGST: ₹{total_sgst:.2f}")
-        self.total_cgst_label.setText(f"Total CGST: ₹{total_cgst:.2f}")
+        avg_sgst = (sgst_percent_sum / sgst_count) if sgst_count else 0
+        avg_cgst = (cgst_percent_sum / cgst_count) if cgst_count else 0
+        self.total_sgst_label.setText(f"Avg SGST%: {avg_sgst:.2f}%")
+        self.total_cgst_label.setText(f"Avg CGST%: {avg_cgst:.2f}%")
         self.total_amount_label.setText(f"Total Amount: ₹{total_amount:.2f}")
     
     def increase_quantity(self, row):
@@ -684,23 +674,40 @@ class CreateBillWindow(QMainWindow):
                     self.update_bill_display()
     
     def edit_item(self, row):
-        """Edit item quantity"""
+        """Edit item quantity and final price for loose items"""
         if row >= len(self.bill_items):
             return
-        
         item = self.bill_items[row]
-        
-        # Get new quantity
-        quantity, ok = QInputDialog.getDouble(
-            self, "Edit Quantity", 
-            f"Enter new quantity for {item['name']}:",
-            item['quantity'], 0.01, 999.99, 2
-        )
-        
-        if ok:
-            item['quantity'] = quantity
-            self.calculate_item_totals(item)
-            self.update_bill_display()
+        if item['item_type'] == 'loose':
+            # Prepare item_data for dialog
+            item_data = {
+                'name': item['name'],
+                'hsn_code': item.get('hsn_code', ''),
+                'sgst_percent': item.get('sgst_percent', 0),
+                'cgst_percent': item.get('cgst_percent', 0),
+                'total_price': item.get('final_price', 0),
+            }
+            dialog = LooseItemDialog(item_data, self)
+            dialog.quantity_input.setValue(item['quantity'])
+            dialog.final_price_input.setValue(item.get('final_price', 0))
+            if dialog.exec_() == QDialog.Accepted:
+                item['quantity'] = dialog.quantity
+                item['base_price'] = dialog.base_price
+                item['final_price'] = dialog.final_price
+                # SGST/CGST remain from DB
+                self.calculate_item_totals(item)
+                self.update_bill_display()
+        else:
+            # For barcode items, keep old logic (edit quantity only)
+            quantity, ok = QInputDialog.getDouble(
+                self, "Edit Quantity", 
+                f"Enter new quantity for {item['name']}:",
+                item['quantity'], 0.01, 999.99, 2
+            )
+            if ok:
+                item['quantity'] = quantity
+                self.calculate_item_totals(item)
+                self.update_bill_display()
     
     def remove_item(self, row):
         """Remove item from bill"""

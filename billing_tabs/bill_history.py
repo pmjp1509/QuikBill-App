@@ -16,7 +16,7 @@ class BillHistoryWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Bill History")
-        self.setGeometry(100, 100, 1400, 800)
+        self.resize(1000, 700)  # Use a smaller, safer default size
         
         # Set size policy for responsive design
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -331,45 +331,48 @@ class BillHistoryWindow(QMainWindow):
             if not bill:
                 QMessageBox.warning(self, "Error", "Bill not found!")
                 return
-            
             # Create detail message with GST breakdown
-            details = f"Bill ID: {bill['id']}\n"
+            details = ""
             details += f"Customer: {bill['customer_name']}\n"
-            if bill['customer_phone']:
+            if bill.get('customer_phone'):
                 details += f"Phone: {bill['customer_phone']}\n"
             details += f"Date: {bill['created_at']}\n"
             details += f"Total Items: {bill['total_items']}\n"
             if bill.get('total_weight', 0) > 0:
                 details += f"Total Weight: {bill['total_weight']:.2f} kg\n"
-            
-            details += f"\nTax Summary:\n"
-            details += f"Total SGST: ₹{bill.get('total_sgst', 0):.2f}\n"
-            details += f"Total CGST: ₹{bill.get('total_cgst', 0):.2f}\n"
-            details += f"Total Amount: ₹{bill['total_amount']:.2f}\n\n"
-            
-            details += "Items:\n"
-            details += "-" * 60 + "\n"
+            details += "\nItems:\n"
+            details += f"{'Name':<10}{'Qty':>5}{'Base':>7}{'SGST':>6}{'CGST':>6}{'Total':>8}\n"
+            details += "-" * 48 + "\n"
+            sgst_percent_sum = 0
+            cgst_percent_sum = 0
+            sgst_count = 0
+            cgst_count = 0
             for item in bill['items']:
-                details += f"{item['name']}"
-                if item.get('hsn_code'):
-                    details += f" (HSN: {item['hsn_code']})"
-                details += "\n"
-                
+                name = item['name'][:10] if len(item['name']) > 10 else item['name']
+                qty = f"{item['quantity']:.2f}"
                 if item['item_type'] == 'loose':
-                    details += f"  {item['quantity']:.2f} kg × ₹{item['base_price']:.2f}/kg = ₹{item['quantity'] * item['base_price']:.2f}\n"
-                else:
-                    details += f"  {item['quantity']:.0f} × ₹{item['base_price']:.2f} = ₹{item['quantity'] * item['base_price']:.2f}\n"
-                
-                # Show GST details if applicable
-                if item.get('sgst_amount', 0) > 0:
-                    details += f"  SGST ({item.get('sgst_percent', 0):.1f}%): ₹{item.get('sgst_amount', 0):.2f}\n"
-                if item.get('cgst_amount', 0) > 0:
-                    details += f"  CGST ({item.get('cgst_percent', 0):.1f}%): ₹{item.get('cgst_amount', 0):.2f}\n"
-                
-                details += f"  Final Price: ₹{item.get('final_price', item['quantity'] * item['base_price']):.2f}\n\n"
-            
-            QMessageBox.information(self, f"Bill Details - #{bill['id']}", details)
-            
+                    qty += "kg"
+                base = f"{item['base_price']:.2f}"
+                sgst_amt = item.get('sgst_amount', 0)
+                cgst_amt = item.get('cgst_amount', 0)
+                sgst = f"{sgst_amt:.2f}" if sgst_amt > 0 else "-"
+                cgst = f"{cgst_amt:.2f}" if cgst_amt > 0 else "-"
+                total = f"{item.get('final_price', 0):.2f}"
+                details += f"{name:<10}{qty:>5}{base:>7}{sgst:>6}{cgst:>6}{total:>8}\n"
+                if item.get('sgst_percent', 0) > 0:
+                    sgst_percent_sum += item['sgst_percent']
+                    sgst_count += 1
+                if item.get('cgst_percent', 0) > 0:
+                    cgst_percent_sum += item['cgst_percent']
+                    cgst_count += 1
+            details += "-" * 48 + "\n"
+            # Summary at end
+            avg_sgst = (sgst_percent_sum / sgst_count) if sgst_count else 0
+            avg_cgst = (cgst_percent_sum / cgst_count) if cgst_count else 0
+            details += f"Avg SGST%: {avg_sgst:.2f}%\n"
+            details += f"Avg CGST%: {avg_cgst:.2f}%\n"
+            details += f"Total Amount: ₹{bill['total_amount']:.2f}\n"
+            QMessageBox.information(self, f"Bill Details", details)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load bill details: {str(e)}")
     
@@ -489,6 +492,10 @@ class BillHistoryWindow(QMainWindow):
                 font-size: {font_size}px;
             }}
         """)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.load_bills()
 
     def changeEvent(self, event):
         if event.type() == QEvent.WindowStateChange:

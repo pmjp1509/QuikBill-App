@@ -231,24 +231,17 @@ else:
     font_size = 14
 ```
 
-## Troubleshooting
+## Important Notes (v2.1+)
 
-### Common Issues
-- **Printer not detected**: Check USB connection, install pyusb and libusb, and drivers
-- **Database errors**: Delete billing.db to reset (backup first)
-- **Permission issues**: Run as Administrator
-- **Barcode scanner**: Ensure keyboard-wedge mode
-- **DPI issues**: Enable high DPI scaling in Windows display settings
+- **Final Price Workflow**: When adding or editing inventory items, you always enter the final price (including GST). The base price is automatically calculated and stored in the database.
+- **No setGeometry Warnings**: All windows now use `resize(width, height)` with safe defaults. No more geometry warnings on startup.
+- **No Unsupported CSS**: All unsupported Qt stylesheet properties (like `transform`) have been removed. If you see 'Unknown property transform', update your code or dependencies.
+- **Bill Print/History Table**: Bills and bill history now show items in a compact table format (Name, Qty, Base, SGST, CGST, Total) matching the printed receipt.
+- **Average GST in Summary**: Bill summary now shows average SGST% and CGST% instead of totals.
 
-### GST-Related Issues
-- **Tax calculations wrong**: Check SGST and CGST percentages in inventory
-- **Receipt format issues**: Verify thermal printer supports extended character set
-- **Export missing GST data**: Ensure database migration completed successfully
-
-### Performance Optimization
-- **Large databases**: Consider periodic archiving of old bills
-- **Slow UI**: Check system DPI settings and disable unnecessary visual effects
-- **Memory usage**: Close unused windows when working with large datasets
+## Troubleshooting (New)
+- **Unknown property transform**: All `transform:` properties have been removed from stylesheets. If you still see this warning, check for dynamic or runtime stylesheet updates in your code.
+- **QWindowsWindow::setGeometry warnings**: All `setGeometry` calls have been replaced with `resize`. If you still see this warning, ensure you are not setting window sizes larger than your screen.
 
 ## File Structure
 

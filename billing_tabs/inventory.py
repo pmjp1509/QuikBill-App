@@ -56,14 +56,13 @@ class BarcodeItemDialog(QDialog):
         self.quantity_input.setValue(0)
         form_layout.addWidget(self.quantity_input, 3, 1)
         
-        # Base Price
+        # Base Price (auto-calculated, read-only)
         form_layout.addWidget(QLabel("Base Price (₹):"), 4, 0)
         self.base_price_input = QDoubleSpinBox()
         self.base_price_input.setMinimum(0.01)
         self.base_price_input.setMaximum(99999.99)
         self.base_price_input.setDecimals(2)
-        self.base_price_input.setValue(1.00)
-        self.base_price_input.valueChanged.connect(self.calculate_total_price)
+        self.base_price_input.setReadOnly(True)
         form_layout.addWidget(self.base_price_input, 4, 1)
         
         # SGST %
@@ -73,7 +72,7 @@ class BarcodeItemDialog(QDialog):
         self.sgst_input.setMaximum(50.0)
         self.sgst_input.setDecimals(2)
         self.sgst_input.setValue(0.0)
-        self.sgst_input.valueChanged.connect(self.calculate_total_price)
+        self.sgst_input.valueChanged.connect(self.calculate_base_price)
         form_layout.addWidget(self.sgst_input, 5, 1)
         
         # CGST %
@@ -83,17 +82,23 @@ class BarcodeItemDialog(QDialog):
         self.cgst_input.setMaximum(50.0)
         self.cgst_input.setDecimals(2)
         self.cgst_input.setValue(0.0)
-        self.cgst_input.valueChanged.connect(self.calculate_total_price)
+        self.cgst_input.valueChanged.connect(self.calculate_base_price)
         form_layout.addWidget(self.cgst_input, 6, 1)
         
-        # Total Price (calculated)
-        form_layout.addWidget(QLabel("Total Price (₹):"), 7, 0)
-        self.total_price_label = QLabel("₹1.00")
-        self.total_price_label.setFont(QFont("Arial", 12, QFont.Bold))
-        self.total_price_label.setStyleSheet("color: #e74c3c; padding: 5px; border: 1px solid #ccc;")
-        form_layout.addWidget(self.total_price_label, 7, 1)
-        
         layout.addLayout(form_layout)
+        
+        # Final Price (user input) at the bottom
+        final_price_layout = QHBoxLayout()
+        final_price_label = QLabel("Final Price (₹):")
+        final_price_layout.addWidget(final_price_label)
+        self.final_price_input = QDoubleSpinBox()
+        self.final_price_input.setMinimum(0.01)
+        self.final_price_input.setMaximum(99999.99)
+        self.final_price_input.setDecimals(2)
+        self.final_price_input.setValue(1.00)
+        self.final_price_input.valueChanged.connect(self.calculate_base_price)
+        final_price_layout.addWidget(self.final_price_input)
+        layout.addLayout(final_price_layout)
         
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -104,16 +109,17 @@ class BarcodeItemDialog(QDialog):
         self.setLayout(layout)
         
         # Initial calculation
-        self.calculate_total_price()
+        self.calculate_base_price()
     
-    def calculate_total_price(self):
+    def calculate_base_price(self):
         """Calculate and display total price"""
-        base_price = self.base_price_input.value()
+        final_price = self.final_price_input.value()
         sgst_percent = self.sgst_input.value()
         cgst_percent = self.cgst_input.value()
         
-        total_price = base_price + (base_price * sgst_percent / 100) + (base_price * cgst_percent / 100)
-        self.total_price_label.setText(f"₹{total_price:.2f}")
+        divisor = 1 + (sgst_percent + cgst_percent) / 100
+        base_price = final_price / divisor if divisor != 0 else 0
+        self.base_price_input.setValue(base_price)
     
     def load_item_data(self):
         """Load existing item data"""
@@ -122,9 +128,17 @@ class BarcodeItemDialog(QDialog):
             self.name_input.setText(self.item_data['name'])
             self.hsn_input.setText(self.item_data.get('hsn_code', ''))
             self.quantity_input.setValue(self.item_data.get('quantity', 0))
-            self.base_price_input.setValue(self.item_data.get('base_price', self.item_data.get('price', 0)))
             self.sgst_input.setValue(self.item_data.get('sgst_percent', 0))
             self.cgst_input.setValue(self.item_data.get('cgst_percent', 0))
+            # Always use total_price for final price input
+            if 'total_price' in self.item_data:
+                self.final_price_input.setValue(self.item_data['total_price'])
+            else:
+                sgst = self.item_data.get('sgst_percent', 0)
+                cgst = self.item_data.get('cgst_percent', 0)
+                base = self.item_data.get('base_price', self.item_data.get('price', 0))
+                self.final_price_input.setValue(base * (1 + (sgst + cgst) / 100))
+            self.calculate_base_price()
     
     def get_item_data(self):
         """Get item data from form"""
@@ -133,9 +147,9 @@ class BarcodeItemDialog(QDialog):
             'name': self.name_input.text().strip(),
             'hsn_code': self.hsn_input.text().strip(),
             'quantity': self.quantity_input.value(),
-            'base_price': self.base_price_input.value(),
             'sgst_percent': self.sgst_input.value(),
-            'cgst_percent': self.cgst_input.value()
+            'cgst_percent': self.cgst_input.value(),
+            'total_price': self.final_price_input.value()
         }
     
     def accept(self):
@@ -200,14 +214,13 @@ class LooseItemDialog(QDialog):
         self.quantity_input.setValue(0)
         form_layout.addWidget(self.quantity_input, 3, 1)
         
-        # Base Price per kg
+        # Base Price (auto-calculated, read-only)
         form_layout.addWidget(QLabel("Base Price per kg (₹):"), 4, 0)
         self.base_price_input = QDoubleSpinBox()
         self.base_price_input.setMinimum(0.01)
         self.base_price_input.setMaximum(99999.99)
         self.base_price_input.setDecimals(2)
-        self.base_price_input.setValue(1.00)
-        self.base_price_input.valueChanged.connect(self.calculate_total_price)
+        self.base_price_input.setReadOnly(True)
         form_layout.addWidget(self.base_price_input, 4, 1)
         
         # SGST %
@@ -217,7 +230,7 @@ class LooseItemDialog(QDialog):
         self.sgst_input.setMaximum(50.0)
         self.sgst_input.setDecimals(2)
         self.sgst_input.setValue(0.0)
-        self.sgst_input.valueChanged.connect(self.calculate_total_price)
+        self.sgst_input.valueChanged.connect(self.calculate_base_price)
         form_layout.addWidget(self.sgst_input, 5, 1)
         
         # CGST %
@@ -227,18 +240,11 @@ class LooseItemDialog(QDialog):
         self.cgst_input.setMaximum(50.0)
         self.cgst_input.setDecimals(2)
         self.cgst_input.setValue(0.0)
-        self.cgst_input.valueChanged.connect(self.calculate_total_price)
+        self.cgst_input.valueChanged.connect(self.calculate_base_price)
         form_layout.addWidget(self.cgst_input, 6, 1)
         
-        # Total Price (calculated)
-        form_layout.addWidget(QLabel("Total Price per kg (₹):"), 7, 0)
-        self.total_price_label = QLabel("₹1.00")
-        self.total_price_label.setFont(QFont("Arial", 12, QFont.Bold))
-        self.total_price_label.setStyleSheet("color: #e74c3c; padding: 5px; border: 1px solid #ccc;")
-        form_layout.addWidget(self.total_price_label, 7, 1)
-        
         # Image
-        form_layout.addWidget(QLabel("Image (optional):"), 8, 0)
+        form_layout.addWidget(QLabel("Image (optional):"), 7, 0)
         image_layout = QHBoxLayout()
         self.image_path_input = QLineEdit()
         self.image_path_input.setFont(QFont("Arial", 12))
@@ -251,9 +257,22 @@ class LooseItemDialog(QDialog):
         
         image_widget = QWidget()
         image_widget.setLayout(image_layout)
-        form_layout.addWidget(image_widget, 8, 1)
+        form_layout.addWidget(image_widget, 7, 1)
         
         layout.addLayout(form_layout)
+        
+        # Final Price (user input) at the bottom
+        final_price_layout = QHBoxLayout()
+        final_price_label = QLabel("Final Price per kg (₹):")
+        final_price_layout.addWidget(final_price_label)
+        self.final_price_input = QDoubleSpinBox()
+        self.final_price_input.setMinimum(0.01)
+        self.final_price_input.setMaximum(99999.99)
+        self.final_price_input.setDecimals(2)
+        self.final_price_input.setValue(1.00)
+        self.final_price_input.valueChanged.connect(self.calculate_base_price)
+        final_price_layout.addWidget(self.final_price_input)
+        layout.addLayout(final_price_layout)
         
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -264,16 +283,17 @@ class LooseItemDialog(QDialog):
         self.setLayout(layout)
         
         # Initial calculation
-        self.calculate_total_price()
+        self.calculate_base_price()
     
-    def calculate_total_price(self):
+    def calculate_base_price(self):
         """Calculate and display total price"""
-        base_price = self.base_price_input.value()
+        final_price = self.final_price_input.value()
         sgst_percent = self.sgst_input.value()
         cgst_percent = self.cgst_input.value()
         
-        total_price = base_price + (base_price * sgst_percent / 100) + (base_price * cgst_percent / 100)
-        self.total_price_label.setText(f"₹{total_price:.2f}")
+        divisor = 1 + (sgst_percent + cgst_percent) / 100
+        base_price = final_price / divisor if divisor != 0 else 0
+        self.base_price_input.setValue(base_price)
     
     def browse_image(self):
         """Browse for image file and copy to images folder if not already there"""
@@ -310,19 +330,27 @@ class LooseItemDialog(QDialog):
         if self.item_data:
             # Set category
             for i in range(self.category_combo.count()):
-                if self.category_combo.itemData(i) == self.item_data['category_id']:
+                if self.category_combo.itemData(i) == self.item_data.get('category_id'):
                     self.category_combo.setCurrentIndex(i)
                     break
             
             self.name_input.setText(self.item_data['name'])
             self.hsn_input.setText(self.item_data.get('hsn_code', ''))
             self.quantity_input.setValue(self.item_data.get('quantity', 0))
-            self.base_price_input.setValue(self.item_data.get('base_price', self.item_data.get('price_per_kg', 0)))
             self.sgst_input.setValue(self.item_data.get('sgst_percent', 0))
             self.cgst_input.setValue(self.item_data.get('cgst_percent', 0))
             
+            if 'total_price' in self.item_data:
+                self.final_price_input.setValue(self.item_data['total_price'])
+            else:
+                sgst = self.item_data.get('sgst_percent', 0)
+                cgst = self.item_data.get('cgst_percent', 0)
+                base = self.item_data.get('base_price', self.item_data.get('price_per_kg', 0))
+                self.final_price_input.setValue(base * (1 + (sgst + cgst) / 100))
+            
             if self.item_data.get('image_path'):
                 self.image_path_input.setText(self.item_data['image_path'])
+            self.calculate_base_price()
     
     def get_item_data(self):
         """Get item data from form"""
@@ -331,9 +359,9 @@ class LooseItemDialog(QDialog):
             'name': self.name_input.text().strip(),
             'hsn_code': self.hsn_input.text().strip(),
             'quantity': self.quantity_input.value(),
-            'base_price': self.base_price_input.value(),
             'sgst_percent': self.sgst_input.value(),
             'cgst_percent': self.cgst_input.value(),
+            'total_price': self.final_price_input.value(),
             'image_path': self.image_path_input.text().strip() or None
         }
     
@@ -399,7 +427,7 @@ class InventoryWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Inventory Management")
-        self.setGeometry(100, 100, 1400, 900)
+        self.resize(1000, 700)  # Use a smaller, safer default size
         
         # Set size policy for responsive design
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -848,7 +876,7 @@ class InventoryWindow(QMainWindow):
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_item_data()
             if self.db.add_barcode_item(data['barcode'], data['name'], data['hsn_code'], 
-                                       data['quantity'], data['base_price'], data['sgst_percent'], data['cgst_percent']):
+                                       data['quantity'], data['total_price'], data['sgst_percent'], data['cgst_percent']):
                 QMessageBox.information(self, "Success", "Barcode item added successfully!")
                 self.load_barcode_items()
             else:
@@ -860,7 +888,7 @@ class InventoryWindow(QMainWindow):
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_item_data()
             if self.db.update_barcode_item(item_data['id'], data['barcode'], data['name'], data['hsn_code'],
-                                          data['quantity'], data['base_price'], data['sgst_percent'], data['cgst_percent']):
+                                          data['quantity'], data['total_price'], data['sgst_percent'], data['cgst_percent']):
                 QMessageBox.information(self, "Success", "Barcode item updated successfully!")
                 self.load_barcode_items()
             else:
@@ -931,7 +959,7 @@ class InventoryWindow(QMainWindow):
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_item_data()
             if self.db.add_loose_item(data['category_id'], data['name'], data['hsn_code'], data['quantity'],
-                                     data['base_price'], data['sgst_percent'], data['cgst_percent'], data['image_path']):
+                                     data['total_price'], data['sgst_percent'], data['cgst_percent'], data['image_path']):
                 QMessageBox.information(self, "Success", "Loose item added successfully!")
                 self.load_loose_items()
             else:
@@ -944,7 +972,7 @@ class InventoryWindow(QMainWindow):
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_item_data()
             if self.db.update_loose_item(item_data['id'], data['name'], data['hsn_code'], data['quantity'],
-                                        data['base_price'], data['sgst_percent'], data['cgst_percent'], data['image_path']):
+                                        data['total_price'], data['sgst_percent'], data['cgst_percent'], data['image_path']):
                 QMessageBox.information(self, "Success", "Loose item updated successfully!")
                 self.load_loose_items()
             else:
