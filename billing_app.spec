@@ -26,7 +26,9 @@ a = Analysis(
         'escpos',
         'escpos.printer',
         'csv',
-        'datetime'
+        'datetime',
+        'pywhatkit',
+        're'
     ],
     hookspath=[],
     hooksconfig={},

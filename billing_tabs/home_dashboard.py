@@ -13,9 +13,15 @@ class HomeDashboard(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Billing System - Home")
-        self.resize(900, 700)  # Use a smaller, safer default size
-        
-        # Set size policy for responsive design
+        # Set window size based on screen resolution or sensible default
+        screen = QApplication.primaryScreen()
+        screen_size = screen.size() if screen else None
+        default_width, default_height = 1280, 720
+        if screen_size and (screen_size.width() < default_width or screen_size.height() < default_height):
+            self.resize(screen_size.width() * 0.95, screen_size.height() * 0.95)
+        else:
+            self.resize(default_width, default_height)
+        self.setMinimumSize(800, 600)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         # Initialize child windows

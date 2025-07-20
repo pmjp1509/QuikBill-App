@@ -94,7 +94,7 @@ class ThermalPrinter:
             self.printer.text("-" * 32 + "\n")
             # Items header as table
             self.printer.set(bold=True)
-            self.printer.text(f"{'Name':<10}{'Qty':>5}{'Base':>7}{'SGST':>6}{'CGST':>6}{'Total':>8}\n")
+            self.printer.text(f"{'Name':<10}{'Qty':>5}{'Rate':>7}{'Amount':>8}\n")
             self.printer.set(bold=False)
             self.printer.text("-" * 32 + "\n")
             # Items as table rows
@@ -103,17 +103,19 @@ class ThermalPrinter:
             total_cgst_amount = 0
             for item in bill_data['items']:
                 name = item['name'][:10] if len(item['name']) > 10 else item['name']
+                hsn_code = item.get('hsn_code', '')
+                name_hsn = f"{name} (HSN: {hsn_code})" if hsn_code else name
                 qty = f"{item['quantity']:.2f}"
                 if item['item_type'] == 'loose':
                     qty += "kg"
-                base = f"{item['base_price']:.2f}"
+                rate = f"{item['base_price']:.2f}"
+                amount = f"{item.get('final_price', 0):.2f}"
+                # Print item line with HSN code beside name
+                self.printer.text(f"{name_hsn:<22}{qty:>5}{rate:>7}{amount:>8}\n")
+                
+                # Add to totals
                 sgst_amt = item.get('sgst_amount', 0)
                 cgst_amt = item.get('cgst_amount', 0)
-                sgst = f"{sgst_amt:.2f}" if sgst_amt > 0 else "-"
-                cgst = f"{cgst_amt:.2f}" if cgst_amt > 0 else "-"
-                total = f"{item.get('final_price', 0):.2f}"
-                self.printer.text(f"{name:<10}{qty:>5}{base:>7}{sgst:>6}{cgst:>6}{total:>8}\n")
-                # Add to totals
                 total_base_amount += item['quantity'] * item['base_price']
                 total_sgst_amount += sgst_amt
                 total_cgst_amount += cgst_amt

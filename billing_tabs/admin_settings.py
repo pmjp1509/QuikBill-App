@@ -69,31 +69,41 @@ class CredentialsDialog(QDialog):
         
         # Buttons
         button_layout = QHBoxLayout()
+        button_layout.setSpacing(40)
+        button_layout.setContentsMargins(20, 20, 20, 20)
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self.reject)
+        self.cancel_button.setMinimumWidth(120)
+        self.cancel_button.setMinimumHeight(48)
+        self.cancel_button.setFont(QFont("Arial", 14, QFont.Bold))
         self.cancel_button.setStyleSheet("""
             QPushButton {
                 background-color: #95a5a6;
                 color: white;
                 border: none;
-                padding: 10px 20px;
-                border-radius: 5px;
-                font-size: 14px;
+                padding: 12px 28px;
+                border-radius: 10px;
+                font-size: 18px;
+                font-weight: bold;
             }
             QPushButton:hover {
                 background-color: #7f8c8d;
             }
         """)
-        self.ok_button = QPushButton("OK")
+        self.ok_button = QPushButton("Login")
         self.ok_button.clicked.connect(self.accept_credentials)
+        self.ok_button.setMinimumWidth(120)
+        self.ok_button.setMinimumHeight(48)
+        self.ok_button.setFont(QFont("Arial", 14, QFont.Bold))
         self.ok_button.setStyleSheet("""
             QPushButton {
                 background-color: #3498db;
                 color: white;
                 border: none;
-                padding: 10px 20px;
-                border-radius: 5px;
-                font-size: 14px;
+                padding: 12px 28px;
+                border-radius: 10px;
+                font-size: 18px;
+                font-weight: bold;
             }
             QPushButton:hover {
                 background-color: #2980b9;
@@ -200,39 +210,46 @@ class EditDetailsDialog(QDialog):
         
         # Buttons
         button_layout = QHBoxLayout()
-        
+        button_layout.setSpacing(40)
+        button_layout.setContentsMargins(20, 20, 20, 20)
         self.save_button = QPushButton("Save")
         self.save_button.clicked.connect(self.save_details)
+        self.save_button.setMinimumWidth(120)
+        self.save_button.setMinimumHeight(48)
+        self.save_button.setFont(QFont("Arial", 14, QFont.Bold))
         self.save_button.setStyleSheet("""
             QPushButton {
                 background-color: #27ae60;
                 color: white;
                 border: none;
-                padding: 10px 20px;
-                border-radius: 5px;
-                font-size: 14px;
+                padding: 12px 28px;
+                border-radius: 10px;
+                font-size: 18px;
+                font-weight: bold;
             }
             QPushButton:hover {
                 background-color: #229954;
             }
         """)
-        
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self.reject)
+        self.cancel_button.setMinimumWidth(120)
+        self.cancel_button.setMinimumHeight(48)
+        self.cancel_button.setFont(QFont("Arial", 14, QFont.Bold))
         self.cancel_button.setStyleSheet("""
             QPushButton {
                 background-color: #95a5a6;
                 color: white;
                 border: none;
-                padding: 10px 20px;
-                border-radius: 5px;
-                font-size: 14px;
+                padding: 12px 28px;
+                border-radius: 10px;
+                font-size: 18px;
+                font-weight: bold;
             }
             QPushButton:hover {
                 background-color: #7f8c8d;
             }
         """)
-        
         button_layout.addWidget(self.save_button)
         button_layout.addWidget(self.cancel_button)
         layout.addLayout(button_layout)

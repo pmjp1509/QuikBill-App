@@ -1,90 +1,53 @@
-DESKTOP BILLING APPLICATION BUILD INSTRUCTIONS
-==============================================
+# Build Instructions for GST Billing App
 
-REQUIREMENTS:
-- Python 3.7 or higher
-- pip package manager
-- Windows OS (for .exe creation)
+## Prerequisites
+- Python 3.8+
+- pip (Python package manager)
+- Git (optional, for cloning)
+- Google Chrome (for WhatsApp sharing)
+- Supported thermal printer drivers (for printing)
 
-INSTALLATION STEPS:
-1. Install Python dependencies:
-   pip install -r requirements.txt
+## 1. Clone the Repository
+```
+git clone <your-repo-url>
+cd <project-folder>
+```
 
-2. Test the application:
-   python main.py
+## 2. Set Up Virtual Environment
+```
+python -m venv venv
+venv\Scripts\activate  # On Windows
+```
 
-3. Build executable with PyInstaller:
-   
-   OPTION 1 - Simple build:
-   pyinstaller --onefile --windowed main.py
+## 3. Install Dependencies
+```
+pip install -r requirements.txt
+```
 
-   OPTION 2 - Advanced build with custom settings:
-   pyinstaller billing_app.spec
+## 4. Run the Application (for development)
+```
+python main.py
+```
 
-   OPTION 3 - Command line build with all options:
-   pyinstaller --onefile --windowed --name "BillingSystem" --icon=icon.ico --add-data "*.db;." main.py
+## 5. Build Standalone Executable (Windows)
+- Make sure you are in the project root and the virtual environment is activated.
+- Install PyInstaller if not already installed:
+  ```
+  pip install pyinstaller
+  ```
+- Build the executable:
+  ```
+  pyinstaller --onefile --noconsole --add-data "data_base;data_base" --add-data "bills;bills" main.py
+  ```
+  - The `--add-data` options ensure the database and bill images are included.
+  - The output executable will be in the `dist/` folder.
 
-THERMAL PRINTER SETUP:
-1. Install printer drivers
-2. Connect printer via USB
-3. Test printer connection in the application
-4. For network printers, use IP address configuration
+## 6. Notes
+- On first run, the app will create the database and required folders if they do not exist.
+- For WhatsApp sharing, ensure Chrome is installed and you are logged in to WhatsApp Web.
+- For printing, connect and configure your thermal printer in Admin Settings.
 
-DEPLOYMENT:
-1. Copy the generated .exe file from dist/ folder
-2. The application will create billing.db automatically on first run
-3. No additional installation required on target machines
-
-TROUBLESHOOTING:
-- If printer not detected, check USB connection and drivers
-- For database issues, delete billing.db to reset
-- Run as Administrator if file permission issues occur
-
-FEATURES:
-✅ Barcode scanner support (keyboard wedge)
-✅ Thermal printer (ESC/POS 58mm)
-✅ Offline SQLite database
-✅ CSV export functionality
-✅ Inventory management
-✅ Bill history with search
-✅ Customer information tracking
-✅ Loose items with categories
-✅ Live bill calculation
-✅ Professional thermal receipts
-✅ Admin settings with shop details management
-✅ Optional admin authentication (default: admin/admin123)
-
-PRINTER COMPATIBILITY:
-- Epson TM-T20, TM-T82, TM-T88 series
-- Star TSP100, TSP650, TSP700 series
-- Citizen CT-S310, CT-S2000 series
-- Generic ESC/POS compatible printers
-
-SUPPORTED BARCODE FORMATS:
-- Code 128
-- Code 39
-- EAN-13
-- EAN-8
-- UPC-A
-- UPC-E
-
-IMPORTANT NOTES (v2.1+):
-------------------------
-- All windows use `resize(width, height)` for safe default sizing. No more geometry warnings.
-- All unsupported Qt stylesheet properties (like `transform`) have been removed. If you see 'Unknown property transform', check for dynamic stylesheet updates.
-- When adding/editing inventory items, always enter the final price (including GST). Base price is auto-calculated.
-- Bills and bill history show items in a compact table (Name, Qty, Base, SGST, CGST, Total).
-- Bill summary shows average SGST% and CGST% instead of totals.
-
-ADMIN SETTINGS (v2.2+):
------------------------
-- Default admin credentials: username=admin, password=admin123
-- Shop details can be edited through Settings button in home dashboard
-- Optional authentication can be enabled/disabled in admin settings
-- When authentication is enabled, login screen appears before dashboard
-- All changes to shop details require admin credentials verification
-
-TROUBLESHOOTING (NEW):
-----------------------
-- **Unknown property transform**: All `transform:` properties have been removed. If you still see this warning, check for dynamic stylesheet updates in your code.
-- **QWindowsWindow::setGeometry warnings**: All `setGeometry` calls have been replaced with `resize`. If you still see this warning, ensure you are not setting window sizes larger than your screen.
+## 7. Troubleshooting
+- If you see missing module errors, ensure all dependencies are installed in your virtual environment.
+- If WhatsApp automation fails, try increasing the wait time in the code or focus the browser window manually.
+- For further help, see the README.md or contact the maintainer.

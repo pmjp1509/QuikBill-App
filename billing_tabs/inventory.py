@@ -427,9 +427,15 @@ class InventoryWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Inventory Management")
-        self.resize(1000, 700)  # Use a smaller, safer default size
-        
-        # Set size policy for responsive design
+        # Set window size based on screen resolution or sensible default
+        screen = QApplication.primaryScreen()
+        screen_size = screen.size() if screen else None
+        default_width, default_height = 1280, 720
+        if screen_size and (screen_size.width() < default_width or screen_size.height() < default_height):
+            self.resize(screen_size.width() * 0.95, screen_size.height() * 0.95)
+        else:
+            self.resize(default_width, default_height)
+        self.setMinimumSize(800, 600)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         self.db = Database()
@@ -554,6 +560,9 @@ class InventoryWindow(QMainWindow):
         self.barcode_table.setAlternatingRowColors(True)
         self.barcode_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         
+        # Set proper row height for buttons
+        self.barcode_table.verticalHeader().setDefaultSectionSize(70)
+        
         # Set column widths
         header = self.barcode_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # ID
@@ -660,6 +669,9 @@ class InventoryWindow(QMainWindow):
         self.loose_table.setAlternatingRowColors(True)
         self.loose_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         
+        # Set proper row height for buttons
+        self.loose_table.verticalHeader().setDefaultSectionSize(70)
+        
         # Set column widths
         header = self.loose_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # ID
@@ -726,7 +738,8 @@ class InventoryWindow(QMainWindow):
             # Actions
             actions_widget = QWidget()
             actions_layout = QHBoxLayout()
-            actions_layout.setContentsMargins(5, 0, 5, 0)
+            actions_layout.setContentsMargins(10, 10, 10, 10)
+            actions_layout.setSpacing(15)
             
             edit_btn = QPushButton("Edit")
             edit_btn.setStyleSheet("""
@@ -735,10 +748,10 @@ class InventoryWindow(QMainWindow):
                     color: white;
                     border: none;
                     border-radius: 5px;
-                    padding: 5px 15px;
-                    font-size: 10px;
-                    min-width: 50px;
-                    min-height: 25px;
+                    padding: 8px 12px;
+                    font-size: 11px;
+                    min-width: 60px;
+                    min-height: 30px;
                 }
                 QPushButton:hover {
                     background-color: #138496;
@@ -754,10 +767,10 @@ class InventoryWindow(QMainWindow):
                     color: white;
                     border: none;
                     border-radius: 5px;
-                    padding: 5px 15px;
-                    font-size: 10px;
-                    min-width: 50px;
-                    min-height: 25px;
+                    padding: 8px 12px;
+                    font-size: 11px;
+                    min-width: 60px;
+                    min-height: 30px;
                 }
                 QPushButton:hover {
                     background-color: #c0392b;
@@ -827,7 +840,8 @@ class InventoryWindow(QMainWindow):
             # Actions
             actions_widget = QWidget()
             actions_layout = QHBoxLayout()
-            actions_layout.setContentsMargins(5, 0, 5, 0)
+            actions_layout.setContentsMargins(10, 10, 10, 10)
+            actions_layout.setSpacing(15)
             
             edit_btn = QPushButton("Edit")
             edit_btn.setStyleSheet("""
@@ -836,10 +850,10 @@ class InventoryWindow(QMainWindow):
                     color: white;
                     border: none;
                     border-radius: 5px;
-                    padding: 5px 15px;
-                    font-size: 10px;
-                    min-width: 50px;
-                    min-height: 25px;
+                    padding: 8px 12px;
+                    font-size: 11px;
+                    min-width: 60px;
+                    min-height: 30px;
                 }
                 QPushButton:hover {
                     background-color: #138496;
@@ -855,10 +869,10 @@ class InventoryWindow(QMainWindow):
                     color: white;
                     border: none;
                     border-radius: 5px;
-                    padding: 5px 15px;
-                    font-size: 10px;
-                    min-width: 50px;
-                    min-height: 25px;
+                    padding: 8px 12px;
+                    font-size: 11px;
+                    min-width: 60px;
+                    min-height: 30px;
                 }
                 QPushButton:hover {
                     background-color: #c0392b;

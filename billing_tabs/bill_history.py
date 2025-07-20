@@ -16,9 +16,15 @@ class BillHistoryWindow(QMainWindow):
     def __init__(self, printer_instance=None):
         super().__init__()
         self.setWindowTitle("Bill History")
-        self.resize(1000, 700)  # Use a smaller, safer default size
-        
-        # Set size policy for responsive design
+        # Set window size based on screen resolution or sensible default
+        screen = QApplication.primaryScreen()
+        screen_size = screen.size() if screen else None
+        default_width, default_height = 1280, 720
+        if screen_size and (screen_size.width() < default_width or screen_size.height() < default_height):
+            self.resize(screen_size.width() * 0.95, screen_size.height() * 0.95)
+        else:
+            self.resize(default_width, default_height)
+        self.setMinimumSize(800, 600)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         self.db = Database()
@@ -178,6 +184,9 @@ class BillHistoryWindow(QMainWindow):
         # Table settings
         self.bills_table.setAlternatingRowColors(True)
         self.bills_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        
+        # Set proper row height for buttons
+        self.bills_table.verticalHeader().setDefaultSectionSize(50)
         self.bills_table.horizontalHeader().setStretchLastSection(True)
         
         # Set column widths
@@ -270,9 +279,11 @@ class BillHistoryWindow(QMainWindow):
                     background-color: #17a2b8;
                     color: white;
                     border: none;
-                    border-radius: 3px;
-                    padding: 5px 10px;
-                    font-size: 10px;
+                    border-radius: 5px;
+                    padding: 8px 12px;
+                    font-size: 11px;
+                    min-width: 80px;
+                    min-height: 30px;
                 }
                 QPushButton:hover {
                     background-color: #138496;
@@ -288,9 +299,11 @@ class BillHistoryWindow(QMainWindow):
                     background-color: #28a745;
                     color: white;
                     border: none;
-                    border-radius: 3px;
-                    padding: 5px 10px;
-                    font-size: 10px;
+                    border-radius: 5px;
+                    padding: 8px 12px;
+                    font-size: 11px;
+                    min-width: 60px;
+                    min-height: 30px;
                 }
                 QPushButton:hover {
                     background-color: #218838;

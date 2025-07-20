@@ -9,8 +9,12 @@ from PyQt5.QtCore import Qt, QTimer, QEvent, QSize, QStringListModel
 from PyQt5.QtGui import QFont, QPixmap, QIcon
 from data_base.database import Database
 from billing_tabs.thermal_printer import ThermalPrinter
+from billing_tabs.whatsapp_dialog import WhatsAppDialog
 from PIL import Image
 import os
+from datetime import datetime
+import re
+import pyautogui
 
 class CustomerInfoDialog(QDialog):
     def __init__(self, customer_names=None, parent=None):
@@ -22,6 +26,9 @@ class CustomerInfoDialog(QDialog):
         self.customer_name = ""
         self.customer_phone = ""
         self.customer_names = customer_names or []
+        self.db = Database()
+        self._last_lookup_name = None
+        self._last_lookup_phone = None
         
         self.init_ui()
     
@@ -42,6 +49,10 @@ class CustomerInfoDialog(QDialog):
         
         layout.addWidget(self.name_input)
         
+        # When name changes or loses focus, try to fill phone
+        self.name_input.editingFinished.connect(self.autofill_phone_for_name)
+        self.name_input.textChanged.connect(self.clear_phone_if_name_changed)
+        
         # Customer Phone
         layout.addWidget(QLabel("Customer Phone (Optional):"))
         self.phone_input = QLineEdit()
@@ -61,6 +72,33 @@ class CustomerInfoDialog(QDialog):
         
         layout.addLayout(button_layout)
         self.setLayout(layout)
+    
+    def autofill_phone_for_name(self):
+        name = self.name_input.text().strip()
+        if not name:
+            return
+        # Only query DB if name changed
+        if name == self._last_lookup_name:
+            if self._last_lookup_phone:
+                self.phone_input.setText(self._last_lookup_phone)
+            return
+        # Query the database for the most recent phone for this customer
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT customer_phone FROM bills WHERE customer_name = ? AND customer_phone IS NOT NULL AND customer_phone != "" ORDER BY id DESC LIMIT 1', (name,))
+        result = cursor.fetchone()
+        conn.close()
+        phone = result[0] if result and result[0] else ""
+        self._last_lookup_name = name
+        self._last_lookup_phone = phone
+        if phone:
+            self.phone_input.setText(phone)
+    
+    def clear_phone_if_name_changed(self):
+        # If the user is typing a new name, clear the phone field and cache
+        self.phone_input.clear()
+        self._last_lookup_name = None
+        self._last_lookup_phone = None
     
     def accept_input(self):
         self.customer_name = self.name_input.text().strip()
@@ -291,9 +329,15 @@ class CreateBillWindow(QMainWindow):
     def __init__(self, printer_instance=None):
         super().__init__()
         self.setWindowTitle("Create Bill")
-        self.resize(1000, 700)  # Use a smaller, safer default size
-        
-        # Set size policy for responsive design
+        # Set window size based on screen resolution or sensible default
+        screen = QApplication.primaryScreen()
+        screen_size = screen.size() if screen else None
+        default_width, default_height = 1280, 720
+        if screen_size and (screen_size.width() < default_width or screen_size.height() < default_height):
+            self.resize(screen_size.width() * 0.95, screen_size.height() * 0.95)
+        else:
+            self.resize(default_width, default_height)
+        self.setMinimumSize(800, 600)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         self.db = Database()
@@ -521,7 +565,8 @@ class CreateBillWindow(QMainWindow):
         if dialog.exec_() == QDialog.Accepted and dialog.selected_item:
             item_dialog = LooseItemDialog(dialog.selected_item, self)
             if item_dialog.exec_() == QDialog.Accepted:
-                bill_item = {
+                # Prepare new item
+                new_item = {
                     'name': dialog.selected_item['name'],
                     'hsn_code': dialog.selected_item.get('hsn_code', ''),
                     'quantity': item_dialog.quantity,
@@ -531,9 +576,21 @@ class CreateBillWindow(QMainWindow):
                     'cgst_percent': dialog.selected_item.get('cgst_percent', 0),
                     'item_type': 'loose'
                 }
-                
-                self.calculate_item_totals(bill_item)
-                self.bill_items.append(bill_item)
+                self.calculate_item_totals(new_item)
+                # Check for existing loose item with same name and price
+                for existing_item in self.bill_items:
+                    if (
+                        existing_item.get('item_type') == 'loose' and
+                        existing_item.get('name') == new_item['name'] and
+                        abs(existing_item.get('base_price', 0) - new_item['base_price']) < 0.01  # Allow small float diff
+                    ):
+                        # Same item and price: add quantity and update totals
+                        existing_item['quantity'] += new_item['quantity']
+                        self.calculate_item_totals(existing_item)
+                        self.update_bill_display()
+                        return
+                # Otherwise, add as new row
+                self.bill_items.append(new_item)
                 self.update_bill_display()
     
     def update_bill_display(self):
@@ -731,7 +788,19 @@ class CreateBillWindow(QMainWindow):
             return
         
         customer_name = customer_dialog.customer_name
-        customer_phone = customer_dialog.customer_phone
+        customer_phone = customer_dialog.customer_phone.strip()
+        
+        # --- ENFORCE +91 FORMAT AND VALIDATE ---
+        phone_digits = re.sub(r'\D', '', customer_phone)
+        if len(phone_digits) == 10:
+            customer_phone = f'+91{phone_digits}'
+        elif len(phone_digits) == 12 and phone_digits.startswith('91'):
+            customer_phone = f'+{phone_digits}'
+        elif customer_phone.startswith('+91') and len(phone_digits) == 12:
+            pass  # already correct
+        else:
+            QMessageBox.warning(self, "Invalid Phone Number", "Please enter a valid 10-digit phone number. Only Indian numbers (+91) are supported for WhatsApp sending.")
+            return
         
         # Save bill to database
         bill_id = self.db.save_bill(
@@ -753,26 +822,249 @@ class CreateBillWindow(QMainWindow):
             'items': self.bill_items
         }
         
-        # Try to print
-        try:
-            # Try USB connection first
-            if self.thermal_printer.connect_usb_printer():
-                if self.thermal_printer.print_bill(bill_data):
-                    QMessageBox.information(self, "Success", 
-                                            f"Bill #{bill_id} saved and printed successfully!")
-                else:
-                    QMessageBox.warning(self, "Print Error", 
-                                        f"Bill #{bill_id} saved but printing failed!")
-            else:
-                QMessageBox.warning(self, "Printer Error", 
-                                    f"Bill #{bill_id} saved but printer not connected!")
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Bill saved but printing failed: {str(e)}")
+        # --- FORCE WhatsApp sending for debugging ---
+        self.save_and_send_whatsapp(bill_data, customer_name, customer_phone)
         
         # Clear the bill
         self.bill_items = []
         self.update_bill_display()
         self.barcode_input.setFocus()
+
+    def share_via_whatsapp(self, bill_data, customer_name):
+        """Share bill via WhatsApp"""
+        try:
+            # Create a temporary widget to render the bill for WhatsApp sharing
+            bill_widget = self.create_bill_widget_for_sharing(bill_data)
+            
+            # Open WhatsApp dialog
+            whatsapp_dialog = WhatsAppDialog(bill_widget, customer_name, self)
+            if whatsapp_dialog.exec_() == QDialog.Accepted:
+                # Optionally save customer data if requested
+                customer_data = whatsapp_dialog.get_customer_data()
+                if customer_data['save_to_db'] and customer_data['name']:
+                    # Customer data is already saved in the bill, no need to save again
+                    pass
+            
+            # Clean up the temporary widget
+            bill_widget.deleteLater()
+            
+        except Exception as e:
+            QMessageBox.critical(self, "WhatsApp Error", f"Failed to share via WhatsApp: {str(e)}")
+    
+    def create_bill_widget_for_sharing(self, bill_data):
+        """Create a widget containing the bill layout for image capture, matching the requested format"""
+        from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QTableWidget, QTableWidgetItem, QHBoxLayout
+        from PyQt5.QtCore import Qt
+        from PyQt5.QtGui import QFont
+
+        n_items = len(bill_data['items'])
+        table_row_height = 36  # Approximate row height in pixels
+        table_header_height = 40
+        table_height = (n_items + 1) * table_row_height + table_header_height  # +1 for total row
+        widget_height = 250 + table_height + 120  # 250 for header/info, 120 for footer, adjust as needed
+        widget_width = 1123
+
+        widget = QWidget()
+        widget.setFixedSize(widget_width, widget_height)
+        widget.setStyleSheet("""
+            QWidget {
+                background-color: white;
+                font-family: Arial;
+            }
+        """)
+        layout = QVBoxLayout()
+        widget.setLayout(layout)
+
+        # --- SHOP DETAILS (fetch once and reuse) ---
+        if hasattr(self, '_cached_admin_details'):
+            admin_details = self._cached_admin_details
+        else:
+            db = Database()
+            admin_details = db.get_admin_details() or {}
+            self._cached_admin_details = admin_details
+        shop_name = admin_details.get('shop_name', 'Shop Name')
+        shop_address = admin_details.get('address', 'Shop Address')
+        shop_phone = admin_details.get('phone_number', 'Shop Phone')
+        # Shop name bold, address and phone not bold, emojis
+        shop_label = QLabel(f"<b>{shop_name}</b><br/>📍 {shop_address}<br/>📞 {shop_phone}")
+        shop_label.setFont(QFont("Arial", 15))
+        shop_label.setAlignment(Qt.AlignCenter)
+        shop_label.setStyleSheet("padding: 8px; border-bottom: 2px solid #000;")
+        layout.addWidget(shop_label)
+
+        # --- BILL INFO ROW: Bill ID (left), Date (right), no customer phone ---
+        info_row = QHBoxLayout()
+        bill_id_label = QLabel(f"Bill ID: {bill_data['id']}")
+        bill_id_label.setFont(QFont("Arial", 10))
+        bill_id_label.setAlignment(Qt.AlignLeft)
+        info_row.addWidget(bill_id_label, alignment=Qt.AlignLeft)
+        info_row.addStretch()
+        # Format date/time as 12-hour with AM/PM
+        date_label = QLabel(f"Date: {datetime.now().strftime('%d/%m/%Y %I:%M:%S %p')}")
+        date_label.setFont(QFont("Arial", 10))
+        date_label.setAlignment(Qt.AlignRight)
+        info_row.addWidget(date_label, alignment=Qt.AlignRight)
+        layout.addLayout(info_row)
+
+        # --- CUSTOMER NAME (no phone) ---
+        customer_label = QLabel(f"Customer: {bill_data['customer_name']}")
+        customer_label.setFont(QFont("Arial", 10))
+        customer_label.setAlignment(Qt.AlignLeft)
+        customer_label.setStyleSheet("padding: 0px 10px 10px 10px;")
+        layout.addWidget(customer_label)
+
+        # --- TABLE HEADER ---
+        table = QTableWidget()
+        table.setColumnCount(7)
+        table.setHorizontalHeaderLabels([
+            "HSN Code", "Item", "Qty", "Base Price", "SGST (%/₹)", "CGST (%/₹)", "Final Price"
+        ])
+        table.setRowCount(n_items + 1)  # +1 for total row
+        table.setStyleSheet("""
+            QTableWidget { font-size: 15px; }
+            QHeaderView::section { font-size: 16px; font-weight: bold; background: #e0e0e0; }
+        """)
+        table.verticalHeader().setVisible(False)
+        table.horizontalHeader().setStretchLastSection(True)
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+        table.setSelectionMode(QTableWidget.NoSelection)
+        table.setFocusPolicy(Qt.NoFocus)
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        table.setFixedHeight(table_height)
+
+        # Set column widths for A4 landscape (sum should be <= 1123)
+        table.setColumnWidth(0, 120)   # HSN
+        table.setColumnWidth(1, 370)   # Item
+        table.setColumnWidth(2, 90)    # Qty
+        table.setColumnWidth(3, 170)   # Base Price
+        table.setColumnWidth(4, 120)   # SGST
+        table.setColumnWidth(5, 120)   # CGST
+        # Final Price will stretch to fill remaining space
+
+        # Set row heights
+        for row in range(n_items + 1):
+            table.setRowHeight(row, table_row_height)
+        table.horizontalHeader().setFixedHeight(table_header_height)
+
+        # --- FILL TABLE ROWS ---
+        total_base = 0
+        total_sgst = 0
+        total_cgst = 0
+        total_final = 0
+        for row, item in enumerate(bill_data['items']):
+            hsn = str(item.get('hsn_code', ''))
+            name = str(item.get('name', ''))
+            qty = f"{item.get('quantity', 0):.2f}"
+            base_price_val = item.get('base_price', 0)
+            base_price = f"₹{base_price_val:.2f}"
+            sgst_percent = item.get('sgst_percent', 0)
+            sgst_amt = item.get('sgst_amount', 0)
+            cgst_percent = item.get('cgst_percent', 0)
+            cgst_amt = item.get('cgst_amount', 0)
+            final_price_val = item.get('final_price', 0)
+            final_price = f"₹{final_price_val:.2f}"
+
+            table.setItem(row, 0, QTableWidgetItem(hsn))
+            table.setItem(row, 1, QTableWidgetItem(name))
+            table.setItem(row, 2, QTableWidgetItem(qty))
+            table.setItem(row, 3, QTableWidgetItem(base_price))
+            table.setItem(row, 4, QTableWidgetItem(f"{sgst_percent:.1f}%\n₹{sgst_amt:.2f}"))
+            table.setItem(row, 5, QTableWidgetItem(f"{cgst_percent:.1f}%\n₹{cgst_amt:.2f}"))
+            table.setItem(row, 6, QTableWidgetItem(final_price))
+
+            total_base += base_price_val
+            total_sgst += sgst_amt
+            total_cgst += cgst_amt
+            total_final += final_price_val
+
+        # --- TOTAL ROW ---
+        total_row = n_items
+        table.setItem(total_row, 0, QTableWidgetItem(""))
+        table.setItem(total_row, 1, QTableWidgetItem("Total"))
+        table.setItem(total_row, 2, QTableWidgetItem(""))
+        table.setItem(total_row, 3, QTableWidgetItem(f"₹{total_base:.2f}"))
+        table.setItem(total_row, 4, QTableWidgetItem(f"₹{total_sgst:.2f}"))
+        table.setItem(total_row, 5, QTableWidgetItem(f"₹{total_cgst:.2f}"))
+        table.setItem(total_row, 6, QTableWidgetItem(f"₹{total_final:.2f}"))
+        for col in [1,3,4,5,6]:
+            item = table.item(total_row, col)
+            if item:
+                font = item.font()
+                font.setBold(True)
+                item.setFont(font)
+        table.setSpan(total_row, 0, 1, 1)  # No span, just label in Item column
+
+        layout.addWidget(table)
+
+        # --- GRAND TOTAL FOOTER ---
+        total_label = QLabel(f"GRAND TOTAL: ₹{total_final:.2f}")
+        total_label.setFont(QFont("Arial", 16, QFont.Bold))
+        total_label.setAlignment(Qt.AlignCenter)
+        total_label.setStyleSheet("padding: 10px; background-color: #e8f4fd; border: 2px solid #3498db;")
+        layout.addWidget(total_label)
+
+        # Footer
+        footer_label = QLabel(f"Thank you for shopping in {shop_name}!")
+        footer_label.setFont(QFont("Arial", 12))
+        footer_label.setAlignment(Qt.AlignCenter)
+        footer_label.setStyleSheet("padding: 10px; color: #666;")
+        layout.addWidget(footer_label)
+        layout.addStretch()
+        return widget
+
+    def send_bill_image_via_whatsapp(self, phone, image_path, caption):
+        import pywhatkit
+        import time
+        pywhatkit.sendwhats_image(phone, image_path, caption=caption, wait_time=30, tab_close=False, close_time=3)
+        # Wait for WhatsApp Web to be ready, then press Enter to send
+        try:
+            import pyautogui
+            time.sleep(10)  # Increased wait time for WhatsApp Web to load
+            pyautogui.press('enter')
+            time.sleep(3)  # Wait for message to be sent
+            pyautogui.hotkey('ctrl', 'w')  # Close the tab
+        except Exception as e:
+            print(f"pyautogui not available or failed to press enter/close tab: {e}")
+
+    def save_and_send_whatsapp(self, bill_data, customer_name, customer_phone):
+        """Save the bill as an image in a 'bills' folder and send via WhatsApp using pywhatkit, ensuring the correct Chrome profile is used."""
+        try:
+            from PyQt5.QtWidgets import QApplication, QMessageBox
+            from PyQt5.QtCore import QBuffer, QIODevice
+            import os
+            # Create a widget for the bill
+            bill_widget = self.create_bill_widget_for_sharing(bill_data)
+            # Render to QPixmap
+            pixmap = bill_widget.grab()
+            # Ensure 'bills' folder exists in project root
+            bills_dir = os.path.join(os.getcwd(), 'bills')
+            os.makedirs(bills_dir, exist_ok=True)
+            # Save to file in 'bills' folder
+            image_path = os.path.join(bills_dir, f"bill_{bill_data['id']}.png")
+            pixmap.save(image_path, 'PNG')
+            # Send via WhatsApp if phone number is valid
+            if customer_phone and customer_phone.startswith('+') and len(customer_phone) > 7:
+                try:
+                    db = Database()
+                    admin_details = db.get_admin_details() or {}
+                    shop_name = admin_details.get('shop_name', 'Shop Name')
+                    message_text = f"Bill #{bill_data['id']} from {shop_name}"
+                    QMessageBox.information(self, "Debug", f"About to send bill image via WhatsApp\nNumber: {customer_phone}\nImage: {image_path}")
+                    print(f"About to send bill image via WhatsApp\nNumber: {customer_phone}\nImage: {image_path}")
+                    self.send_bill_image_via_whatsapp(customer_phone, image_path, message_text)
+                    QMessageBox.information(self, "WhatsApp", "✅ Bill sent via WhatsApp!")
+                    print("✅ Bill sent via WhatsApp!")
+                except Exception as e:
+                    QMessageBox.warning(self, "WhatsApp Error", f"❌ Failed to send bill via WhatsApp.\n{str(e)}")
+                    print(f"❌ Failed to send bill via WhatsApp. {str(e)}")
+            else:
+                QMessageBox.information(self, "WhatsApp", "Bill image saved, but phone number is invalid or not provided.")
+                print("Bill image saved, but phone number is invalid or not provided.")
+            bill_widget.deleteLater()
+        except Exception as e:
+            QMessageBox.critical(self, "WhatsApp Error", f"Failed to share via WhatsApp: {str(e)}")
+            print(f"Failed to share via WhatsApp: {str(e)}")
 
     def resizeEvent(self, event):
         """Handle window resize events"""
