@@ -3,14 +3,34 @@ from escpos.exceptions import Error as EscposError
 from datetime import datetime
 from typing import Dict, List, Optional
 import os
+from data_base.database import Database
 
 class ThermalPrinter:
     def __init__(self):
         self.printer = None
         self.is_connected = False
-        self.shop_name = "Your Shop Name"
-        self.shop_address = "Your Shop Address"
-        self.shop_phone = "Your Phone Number"
+        self.db = Database()
+        self.load_shop_details()
+    
+    def load_shop_details(self):
+        """Load shop details from database"""
+        try:
+            admin_details = self.db.get_admin_details()
+            if admin_details:
+                self.shop_name = admin_details.get('shop_name', 'Your Shop Name')
+                self.shop_address = admin_details.get('address', 'Your Shop Address')
+                self.shop_phone = admin_details.get('phone_number', 'Your Phone Number')
+            else:
+                # Fallback to defaults if no admin details found
+                self.shop_name = "Your Shop Name"
+                self.shop_address = "Your Shop Address"
+                self.shop_phone = "Your Phone Number"
+        except Exception as e:
+            print(f"Error loading shop details: {e}")
+            # Fallback to defaults
+            self.shop_name = "Your Shop Name"
+            self.shop_address = "Your Shop Address"
+            self.shop_phone = "Your Phone Number"
         
     def connect_usb_printer(self, vendor_id: int = 0x04b8, product_id: int = 0x0202):
         """Connect to USB thermal printer"""
@@ -145,6 +165,10 @@ class ThermalPrinter:
         except Exception as e:
             print(f"Test print failed: {e}")
             return False
+    
+    def refresh_shop_details(self):
+        """Refresh shop details from database (useful after admin settings changes)"""
+        self.load_shop_details()
     
     def close_connection(self):
         """Close printer connection"""

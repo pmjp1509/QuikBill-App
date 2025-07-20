@@ -6,6 +6,8 @@ from PyQt5.QtGui import QFont, QPixmap, QIcon
 from billing_tabs.create_bill import CreateBillWindow
 from billing_tabs.bill_history import BillHistoryWindow
 from billing_tabs.inventory import InventoryWindow
+from billing_tabs.admin_settings import AdminSettingsWindow
+from billing_tabs.thermal_printer import ThermalPrinter
 
 class HomeDashboard(QMainWindow):
     def __init__(self):
@@ -20,6 +22,10 @@ class HomeDashboard(QMainWindow):
         self.create_bill_window = None
         self.bill_history_window = None
         self.inventory_window = None
+        self.admin_settings_window = None
+        
+        # Initialize printer instance
+        self.printer = ThermalPrinter()
         
         self.init_ui()
         
@@ -133,10 +139,33 @@ class HomeDashboard(QMainWindow):
             }
         """)
         
+        # Settings Button
+        settings_btn = QPushButton("Settings")
+        settings_btn.setFont(QFont("Arial", 16, QFont.Bold))
+        settings_btn.setMinimumHeight(120)
+        settings_btn.clicked.connect(self.open_settings)
+        settings_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #9b59b6;
+                color: white;
+                border: none;
+                border-radius: 15px;
+                padding: 20px;
+                margin: 10px;
+            }
+            QPushButton:hover {
+                background-color: #8e44ad;
+            }
+            QPushButton:pressed {
+                background-color: #7d3c98;
+            }
+        """)
+        
         # Add buttons to layout
         buttons_layout.addWidget(create_bill_btn)
         buttons_layout.addWidget(bill_history_btn)
         buttons_layout.addWidget(inventory_btn)
+        buttons_layout.addWidget(settings_btn)
         
         # Add stretch to center buttons
         main_layout.addStretch()
@@ -234,7 +263,7 @@ class HomeDashboard(QMainWindow):
     def open_create_bill(self):
         """Open Create Bill window"""
         if self.create_bill_window is None:
-            self.create_bill_window = CreateBillWindow()
+            self.create_bill_window = CreateBillWindow(self.printer)
         self.create_bill_window.showMaximized()
         self.create_bill_window.raise_()
         self.create_bill_window.activateWindow()
@@ -242,7 +271,7 @@ class HomeDashboard(QMainWindow):
     def open_bill_history(self):
         """Open Bill History window"""
         if self.bill_history_window is None:
-            self.bill_history_window = BillHistoryWindow()
+            self.bill_history_window = BillHistoryWindow(self.printer)
         self.bill_history_window.showMaximized()
         self.bill_history_window.raise_()
         self.bill_history_window.activateWindow()
@@ -255,6 +284,22 @@ class HomeDashboard(QMainWindow):
         self.inventory_window.raise_()
         self.inventory_window.activateWindow()
     
+    def open_settings(self):
+        """Open admin settings window"""
+        if self.admin_settings_window is None:
+            self.admin_settings_window = AdminSettingsWindow()
+            # Connect signal to refresh printer shop details
+            self.admin_settings_window.shop_details_updated.connect(self.refresh_printer_details)
+        # Always restore and bring to front
+        self.admin_settings_window.showNormal()
+        self.admin_settings_window.raise_()
+        self.admin_settings_window.activateWindow()
+    
+    def refresh_printer_details(self):
+        """Refresh printer shop details when admin settings are updated"""
+        if self.printer:
+            self.printer.refresh_shop_details()
+    
     def closeEvent(self, event):
         """Handle window close event"""
         # Close all child windows
@@ -264,6 +309,8 @@ class HomeDashboard(QMainWindow):
             self.bill_history_window.close()
         if self.inventory_window:
             self.inventory_window.close()
+        if self.admin_settings_window:
+            self.admin_settings_window.close()
         
         event.accept()
 

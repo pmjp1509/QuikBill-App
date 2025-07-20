@@ -101,11 +101,29 @@ class Database:
             )
         ''')
         
+        # Create admin_details table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS admin_details (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                shop_name TEXT NOT NULL DEFAULT 'My Shop',
+                address TEXT NOT NULL DEFAULT 'Shop Address',
+                phone_number TEXT NOT NULL DEFAULT '1234567890',
+                use_credentials BOOLEAN NOT NULL DEFAULT 0,
+                username TEXT NOT NULL DEFAULT 'admin',
+                password TEXT NOT NULL DEFAULT 'admin123',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
         # Migrate existing data if needed
         self._migrate_existing_data(cursor)
         
         # Insert default categories and items
         self._insert_default_data(cursor)
+        
+        # Insert default admin details if not exists
+        self._insert_default_admin_data(cursor)
         
         conn.commit()
         conn.close()
@@ -226,6 +244,15 @@ class Database:
                     INSERT OR IGNORE INTO barcode_items (barcode, name, hsn_code, base_price, sgst_percent, cgst_percent, total_price) 
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''', (barcode, name, hsn, base_price, sgst, cgst, total_price))
+    
+    def _insert_default_admin_data(self, cursor):
+        """Insert default admin details if they don't exist"""
+        cursor.execute('SELECT COUNT(*) FROM admin_details')
+        if cursor.fetchone()[0] == 0:
+            cursor.execute('''
+                INSERT INTO admin_details (shop_name, address, phone_number, use_credentials, username, password) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', ('My Shop', 'Shop Address', '1234567890', False, 'admin', 'admin123'))
     
     def get_connection(self):
         """Get database connection"""
@@ -597,3 +624,56 @@ class Database:
         conn.close()
         
         return [row[0] for row in results]
+    
+    # Admin Details Methods
+    def get_admin_details(self) -> Optional[Dict]:
+        """Get admin details"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT shop_name, address, phone_number, use_credentials, username, password 
+            FROM admin_details ORDER BY id LIMIT 1
+        ''')
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            return {
+                'shop_name': result[0],
+                'address': result[1],
+                'phone_number': result[2],
+                'use_credentials': bool(result[3]),
+                'username': result[4],
+                'password': result[5]
+            }
+        return None
+    
+    def update_admin_details(self, shop_name: str, address: str, phone_number: str, 
+                           use_credentials: bool, username: str, password: str) -> bool:
+        """Update admin details"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE admin_details SET shop_name = ?, address = ?, phone_number = ?, 
+                use_credentials = ?, username = ?, password = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = (SELECT id FROM admin_details ORDER BY id LIMIT 1)
+            ''', (shop_name, address, phone_number, use_credentials, username, password))
+            conn.commit()
+            conn.close()
+            return True
+        except:
+            return False
+    
+    def verify_admin_credentials(self, username: str, password: str) -> bool:
+        """Verify admin credentials"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT COUNT(*) FROM admin_details 
+            WHERE username = ? AND password = ?
+        ''', (username, password))
+        result = cursor.fetchone()[0]
+        conn.close()
+        
+        return result > 0

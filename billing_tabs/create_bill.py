@@ -288,7 +288,7 @@ class LooseCategoryDialog(QDialog):
         self.accept()
 
 class CreateBillWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, printer_instance=None):
         super().__init__()
         self.setWindowTitle("Create Bill")
         self.resize(1000, 700)  # Use a smaller, safer default size
@@ -297,7 +297,8 @@ class CreateBillWindow(QMainWindow):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         self.db = Database()
-        self.thermal_printer = ThermalPrinter()
+        # Use provided printer instance or create new one
+        self.thermal_printer = printer_instance if printer_instance else ThermalPrinter()
         
         # Bill data
         self.bill_items = []

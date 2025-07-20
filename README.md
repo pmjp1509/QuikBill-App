@@ -44,8 +44,9 @@ A complete, production-ready Python desktop application for offline billing with
 
 ### 🏠 Home Dashboard
 - Clean, responsive interface with large navigation buttons
-- Three main sections: Create Bill, Bill History, and Inventory
+- Four main sections: Create Bill, Bill History, Inventory, and Settings
 - GST-enabled system branding
+- Optional admin authentication for enhanced security
 
 ### 🧾 Create Bill
 - **Barcode Items**: Keyboard-wedge scanner support with auto-add functionality
@@ -67,6 +68,12 @@ A complete, production-ready Python desktop application for offline billing with
 - **Categories**: Manage loose item categories with delete functionality
 - **GST Management**: Configure tax rates per item with auto-calculation
 - **Responsive Tables**: Adaptive column widths and font sizes
+
+### ⚙️ Admin Settings
+- **Shop Details Management**: Edit shop name, address, and phone number
+- **Security Configuration**: Enable/disable admin authentication requirement
+- **Credential Management**: Default credentials (admin/admin123) with secure verification
+- **Access Control**: Optional login screen before accessing the dashboard
 
 ### 🖨️ Thermal Printing
 - ESC/POS 58mm thermal printer support
@@ -134,6 +141,14 @@ The enhanced version includes new database fields:
 - Complete GST breakdown per item
 - HSN code tracking
 - Base price and tax amounts
+
+### Admin Details
+- `shop_name`: Name of the shop/business
+- `address`: Shop address
+- `phone_number`: Contact phone number
+- `use_credentials`: Boolean flag for authentication requirement
+- `username`: Admin username (default: admin)
+- `password`: Admin password (default: admin123)
 
 ## GST Calculations
 

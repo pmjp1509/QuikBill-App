@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import QApplication, QMessageBox, QSplashScreen
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap, QFont
 from billing_tabs.home_dashboard import HomeDashboard
+from billing_tabs.login_dialog import LoginDialog
 from data_base.database import Database
 
 def create_splash_screen():
@@ -45,35 +46,38 @@ def setup_application():
 def main():
     """Main application entry point"""
     app = setup_application()
-    
     # Create splash screen
     splash = create_splash_screen()
     splash.show()
-    
-    # Process events to show splash screen
     app.processEvents()
-    
     try:
         # Initialize database
         splash.showMessage("Initializing database with GST support...", Qt.AlignCenter, Qt.black)
         app.processEvents()
-        
         db = Database()
-        
-        # Create main window
-        splash.showMessage("Loading main window...", Qt.AlignCenter, Qt.black)
-        app.processEvents()
-        
-        main_window = HomeDashboard()
-        
-        # Show main window after a short delay
-        QTimer.singleShot(1500, lambda: [splash.finish(main_window), main_window.show()])
-        
+        # Check if credentials are required
+        admin_details = db.get_admin_details()
+        if admin_details and admin_details.get('use_credentials', False):
+            splash.showMessage("Checking credentials...", Qt.AlignCenter, Qt.black)
+            app.processEvents()
+            splash.finish(None)
+            login_dialog = LoginDialog()
+            if login_dialog.exec_() != LoginDialog.Accepted:
+                sys.exit(0)
+            # Show main window immediately after login
+            main_window = HomeDashboard()
+            main_window.show()
+        else:
+            # Create main window
+            splash.showMessage("Loading main window...", Qt.AlignCenter, Qt.black)
+            app.processEvents()
+            main_window = HomeDashboard()
+            # Show main window after a short delay
+            QTimer.singleShot(1500, lambda: [splash.finish(main_window), main_window.show()])
     except Exception as e:
         splash.close()
         QMessageBox.critical(None, "Startup Error", f"Failed to start application:\n{str(e)}")
         sys.exit(1)
-    
     # Run the application
     sys.exit(app.exec_())
 

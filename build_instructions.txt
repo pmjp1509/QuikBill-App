@@ -51,6 +51,8 @@ FEATURES:
 ✅ Loose items with categories
 ✅ Live bill calculation
 ✅ Professional thermal receipts
+✅ Admin settings with shop details management
+✅ Optional admin authentication (default: admin/admin123)
 
 PRINTER COMPATIBILITY:
 - Epson TM-T20, TM-T82, TM-T88 series
@@ -73,6 +75,14 @@ IMPORTANT NOTES (v2.1+):
 - When adding/editing inventory items, always enter the final price (including GST). Base price is auto-calculated.
 - Bills and bill history show items in a compact table (Name, Qty, Base, SGST, CGST, Total).
 - Bill summary shows average SGST% and CGST% instead of totals.
+
+ADMIN SETTINGS (v2.2+):
+-----------------------
+- Default admin credentials: username=admin, password=admin123
+- Shop details can be edited through Settings button in home dashboard
+- Optional authentication can be enabled/disabled in admin settings
+- When authentication is enabled, login screen appears before dashboard
+- All changes to shop details require admin credentials verification
 
 TROUBLESHOOTING (NEW):
 ----------------------
