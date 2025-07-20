@@ -1,4 +1,4 @@
-# QuikBill App
+# QuickBill App
 
 A modern, offline desktop billing application with GST support, inventory management, WhatsApp bill sharing, and thermal printing. Built with Python and PyQt5 for small businesses and shops in India.
 
