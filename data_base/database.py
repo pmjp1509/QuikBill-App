@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from typing import List, Tuple, Optional, Dict
 import sys
+import csv
 
 class Database:
     def __init__(self, db_path: str = None):
@@ -65,6 +66,8 @@ class Database:
                 FOREIGN KEY (category_id) REFERENCES loose_categories (id)
             )
         ''')
+        # Add unique index for loose_items
+        cursor.execute('''CREATE UNIQUE INDEX IF NOT EXISTS idx_loose_items_unique ON loose_items (category_id, name, hsn_code)''')
         
         # Create bills table
         cursor.execute('''
@@ -677,3 +680,112 @@ class Database:
         conn.close()
         
         return result > 0
+
+    def import_barcode_items_from_csv(self, file_path: str):
+        """Import barcode items from a CSV file. Returns (success_count, fail_count, fail_rows)"""
+        required_fields = ["barcode", "name", "hsn_code", "quantity", "sgst", "cgst", "total_price"]
+        success_count = 0
+        fail_count = 0
+        fail_rows = []
+        # Pre-fetch all existing barcodes
+        existing_barcodes = set()
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT barcode FROM barcode_items')
+        for row in cursor.fetchall():
+            existing_barcodes.add(row[0])
+        conn.close()
+        to_insert = []
+        with open(file_path, newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for idx, row in enumerate(reader, start=2):  # start=2 for header row
+                # Validate required fields
+                if not all(field in row and row[field].strip() for field in required_fields):
+                    fail_count += 1
+                    fail_rows.append((idx, "Missing required fields"))
+                    continue
+                try:
+                    barcode = row["barcode"].strip()
+                    if barcode in existing_barcodes:
+                        fail_count += 1
+                        fail_rows.append((idx, "Duplicate barcode"))
+                        continue
+                    name = row["name"].strip()
+                    hsn_code = row["hsn_code"].strip()
+                    quantity = int(row["quantity"])
+                    sgst = float(row["sgst"])
+                    cgst = float(row["cgst"])
+                    total_price = float(row["total_price"])
+                    to_insert.append((barcode, name, hsn_code, quantity, total_price, sgst, cgst))
+                    existing_barcodes.add(barcode)
+                except Exception as e:
+                    fail_count += 1
+                    fail_rows.append((idx, str(e)))
+        # Bulk insert
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        for barcode, name, hsn_code, quantity, total_price, sgst, cgst in to_insert:
+            base_price = total_price / (1 + (sgst + cgst) / 100)
+            cursor.execute('''INSERT OR IGNORE INTO barcode_items (barcode, name, hsn_code, quantity, base_price, sgst_percent, cgst_percent, total_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', (barcode, name, hsn_code, quantity, base_price, sgst, cgst, total_price))
+            success_count += 1
+        conn.commit()
+        conn.close()
+        return success_count, fail_count, fail_rows
+
+    def import_loose_items_from_csv(self, file_path: str):
+        """Import loose items from a CSV file. Returns (success_count, fail_count, fail_rows)"""
+        required_fields = ["category", "name", "hsn_code", "quantity", "sgst", "cgst", "total_price"]
+        success_count = 0
+        fail_count = 0
+        fail_rows = []
+        # Build category name to id map
+        categories = {cat['name']: cat['id'] for cat in self.get_loose_categories()}
+        # Pre-fetch all existing (category_id, name, hsn_code)
+        existing_keys = set()
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT category_id, name, hsn_code FROM loose_items')
+        for row in cursor.fetchall():
+            existing_keys.add((row[0], row[1], row[2]))
+        conn.close()
+        to_insert = []
+        with open(file_path, newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for idx, row in enumerate(reader, start=2):
+                if not all(field in row and row[field].strip() for field in required_fields):
+                    fail_count += 1
+                    fail_rows.append((idx, "Missing required fields"))
+                    continue
+                try:
+                    category_name = row["category"].strip()
+                    if category_name not in categories:
+                        fail_count += 1
+                        fail_rows.append((idx, f"Category '{category_name}' not found"))
+                        continue
+                    category_id = categories[category_name]
+                    name = row["name"].strip()
+                    hsn_code = row["hsn_code"].strip()
+                    key = (category_id, name, hsn_code)
+                    if key in existing_keys:
+                        fail_count += 1
+                        fail_rows.append((idx, "Duplicate item (category, name, hsn_code)"))
+                        continue
+                    quantity = int(row["quantity"])
+                    sgst = float(row["sgst"])
+                    cgst = float(row["cgst"])
+                    total_price = float(row["total_price"])
+                    to_insert.append((category_id, name, hsn_code, quantity, total_price, sgst, cgst))
+                    existing_keys.add(key)
+                except Exception as e:
+                    fail_count += 1
+                    fail_rows.append((idx, str(e)))
+        # Bulk insert
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        for category_id, name, hsn_code, quantity, total_price, sgst, cgst in to_insert:
+            base_price = total_price / (1 + (sgst + cgst) / 100)
+            cursor.execute('''INSERT OR IGNORE INTO loose_items (category_id, name, hsn_code, quantity, base_price, sgst_percent, cgst_percent, total_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', (category_id, name, hsn_code, quantity, base_price, sgst, cgst, total_price))
+            success_count += 1
+        conn.commit()
+        conn.close()
+        return success_count, fail_count, fail_rows

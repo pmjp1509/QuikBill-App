@@ -82,3 +82,21 @@ Phone Number: +916301138243
 Image: C:\Users\pmjpr\OneDrive\Desktop\hari bill WA\project\bills\bill_51.png
 Caption: Bill #51 from hari poran shop
 --------------------
+Date: 21/7/2025
+Time: 12:37
+Phone Number: +916301138243
+Image: C:\Users\HP\Downloads\Project_B-main\Project_B-main\bills\bill_52.png
+Caption: Bill #52 from hari poran shop
+--------------------
+Date: 21/7/2025
+Time: 12:38
+Phone Number: +916301138243
+Image: C:\Users\HP\Downloads\Project_B-main\Project_B-main\bills\bill_53.png
+Caption: Bill #53 from hari poran shop
+--------------------
+Date: 21/7/2025
+Time: 13:39
+Phone Number: +916301138243
+Image: C:\Users\pmjpr\OneDrive\Desktop\Project_B-main\bills\bill_2.png
+Caption: Bill #2 from My Shop
+--------------------

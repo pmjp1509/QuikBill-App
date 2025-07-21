@@ -527,6 +527,25 @@ class InventoryWindow(QMainWindow):
             }
         """)
         controls_layout.addWidget(add_barcode_btn)
+
+        # Upload CSV for Barcode Items
+        upload_barcode_csv_btn = QPushButton("Upload CSV")
+        upload_barcode_csv_btn.setFont(QFont("Arial", 12))
+        upload_barcode_csv_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #28a745;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px 20px;
+            }
+            QPushButton:hover {
+                background-color: #218838;
+                border: 2px solid #145a32;
+            }
+        """)
+        upload_barcode_csv_btn.clicked.connect(self.upload_barcode_csv)
+        controls_layout.addWidget(upload_barcode_csv_btn)
         
         controls_layout.addStretch()
         
@@ -636,6 +655,25 @@ class InventoryWindow(QMainWindow):
             }
         """)
         controls_layout.addWidget(add_loose_btn)
+
+        # Upload CSV for Loose Items
+        upload_loose_csv_btn = QPushButton("Upload CSV")
+        upload_loose_csv_btn.setFont(QFont("Arial", 12))
+        upload_loose_csv_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #28a745;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px 20px;
+            }
+            QPushButton:hover {
+                background-color: #218838;
+                border: 2px solid #145a32;
+            }
+        """)
+        upload_loose_csv_btn.clicked.connect(self.upload_loose_csv)
+        controls_layout.addWidget(upload_loose_csv_btn)
         
         controls_layout.addStretch()
         
@@ -1006,6 +1044,42 @@ class InventoryWindow(QMainWindow):
                 self.load_loose_items()
             else:
                 QMessageBox.warning(self, "Error", "Failed to delete loose item.")
+
+    def upload_barcode_csv(self):
+        """Handle CSV upload for barcode items"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select CSV File", "", 
+            "CSV Files (*.csv);;All Files (*)"
+        )
+        if file_path:
+            try:
+                success, fail, fail_rows = self.db.import_barcode_items_from_csv(file_path)
+                msg = f"Successfully added: {success}\nSkipped: {fail}"
+                if fail_rows:
+                    msg += "\n\nRows skipped due to errors:\n"
+                    msg += "\n".join([f"Row {row}: {reason}" for row, reason in fail_rows])
+                QMessageBox.information(self, "CSV Import Result", msg)
+                self.load_barcode_items()
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to import barcode items from CSV: {e}")
+
+    def upload_loose_csv(self):
+        """Handle CSV upload for loose items"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select CSV File", "", 
+            "CSV Files (*.csv);;All Files (*)"
+        )
+        if file_path:
+            try:
+                success, fail, fail_rows = self.db.import_loose_items_from_csv(file_path)
+                msg = f"Successfully added: {success}\nSkipped: {fail}"
+                if fail_rows:
+                    msg += "\n\nRows skipped due to errors:\n"
+                    msg += "\n".join([f"Row {row}: {reason}" for row, reason in fail_rows])
+                QMessageBox.information(self, "CSV Import Result", msg)
+                self.load_loose_items()
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to import loose items from CSV: {e}")
 
     def resizeEvent(self, event):
         """Handle window resize events"""

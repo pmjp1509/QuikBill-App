@@ -822,8 +822,26 @@ class CreateBillWindow(QMainWindow):
             'items': self.bill_items
         }
         
-        # --- FORCE WhatsApp sending for debugging ---
+        # --- Print to console and perform both actions ---
+        print("[INFO] Starting thermal print...")
+        thermal_success = False
+        if self.thermal_printer.connect_usb_printer():
+            thermal_success = self.thermal_printer.print_bill(bill_data)
+            if thermal_success:
+                print("[INFO] Thermal print completed.")
+            else:
+                print("[ERROR] Thermal print failed.")
+                QMessageBox.warning(self, "Print Error", "Thermal print failed!")
+        else:
+            print("[ERROR] Could not connect to thermal printer.")
+            QMessageBox.warning(self, "Printer Error", "Could not connect to thermal printer!")
+        
+        print("[INFO] Sending bill to WhatsApp...")
         self.save_and_send_whatsapp(bill_data, customer_name, customer_phone)
+        print("[INFO] WhatsApp send triggered.")
+        
+        # Alert user that both actions are done
+        QMessageBox.information(self, "Bill Processed", "Thermal print and WhatsApp send have been triggered.")
         
         # Clear the bill
         self.bill_items = []
