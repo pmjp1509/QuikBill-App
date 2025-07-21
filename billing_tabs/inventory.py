@@ -528,7 +528,9 @@ class InventoryWindow(QMainWindow):
         """)
         controls_layout.addWidget(add_barcode_btn)
 
-        # Upload CSV for Barcode Items
+        controls_layout.addStretch()
+
+        # Move Upload CSV to left of Refresh
         upload_barcode_csv_btn = QPushButton("Upload CSV")
         upload_barcode_csv_btn.setFont(QFont("Arial", 12))
         upload_barcode_csv_btn.setStyleSheet("""
@@ -546,9 +548,7 @@ class InventoryWindow(QMainWindow):
         """)
         upload_barcode_csv_btn.clicked.connect(self.upload_barcode_csv)
         controls_layout.addWidget(upload_barcode_csv_btn)
-        
-        controls_layout.addStretch()
-        
+
         refresh_barcode_btn = QPushButton("Refresh")
         refresh_barcode_btn.setFont(QFont("Arial", 12))
         refresh_barcode_btn.clicked.connect(self.load_barcode_items)
@@ -656,7 +656,9 @@ class InventoryWindow(QMainWindow):
         """)
         controls_layout.addWidget(add_loose_btn)
 
-        # Upload CSV for Loose Items
+        controls_layout.addStretch()
+
+        # Move Upload CSV to left of Refresh
         upload_loose_csv_btn = QPushButton("Upload CSV")
         upload_loose_csv_btn.setFont(QFont("Arial", 12))
         upload_loose_csv_btn.setStyleSheet("""
@@ -674,9 +676,7 @@ class InventoryWindow(QMainWindow):
         """)
         upload_loose_csv_btn.clicked.connect(self.upload_loose_csv)
         controls_layout.addWidget(upload_loose_csv_btn)
-        
-        controls_layout.addStretch()
-        
+
         refresh_loose_btn = QPushButton("Refresh")
         refresh_loose_btn.setFont(QFont("Arial", 12))
         refresh_loose_btn.clicked.connect(self.load_loose_items)
@@ -695,6 +695,19 @@ class InventoryWindow(QMainWindow):
         controls_layout.addWidget(refresh_loose_btn)
         
         layout.addLayout(controls_layout)
+        
+        # Category filter
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Filter by Category:"))
+        self.category_filter = QComboBox()
+        self.category_filter.setFont(QFont("Arial", 12))
+        self.category_filter.addItem("All")
+        for cat in self.db.get_loose_categories():
+            self.category_filter.addItem(cat['name'])
+        self.category_filter.currentIndexChanged.connect(self.apply_loose_category_filter)
+        filter_layout.addWidget(self.category_filter)
+        filter_layout.addStretch()
+        layout.addLayout(filter_layout)
         
         # Table
         self.loose_table = QTableWidget()
@@ -1080,6 +1093,24 @@ class InventoryWindow(QMainWindow):
                 self.load_loose_items()
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Failed to import loose items from CSV: {e}")
+
+    def apply_loose_category_filter(self):
+        selected = self.category_filter.currentText()
+        if selected == "All":
+            self.load_loose_items()
+        else:
+            # Filter by category
+            cat_id = None
+            for cat in self.db.get_loose_categories():
+                if cat['name'] == selected:
+                    cat_id = cat['id']
+                    break
+            if cat_id is not None:
+                items = self.db.get_loose_items_by_category(cat_id)
+                # Ensure 'category_name' is present in each item
+                for item in items:
+                    item['category_name'] = selected
+                self.display_loose_items(items)
 
     def resizeEvent(self, event):
         """Handle window resize events"""
