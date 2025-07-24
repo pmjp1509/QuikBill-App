@@ -6,15 +6,17 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QTextEdit, QDialogButtonBox, QInputDialog, QSizePolicy,
                              QHeaderView, QToolButton, QCompleter, QApplication)
 from PyQt5.QtCore import Qt, QTimer, QEvent, QSize, QStringListModel
-from PyQt5.QtGui import QFont, QPixmap, QIcon
+from PyQt5.QtGui import QFont, QPixmap, QIcon, QImage
 from data_base.database import Database
 from billing_tabs.thermal_printer import ThermalPrinter
 from billing_tabs.whatsapp_dialog import WhatsAppDialog
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import os
 from datetime import datetime
 import re
 import pyautogui
+import qrcode
+import random
 
 class CustomerInfoDialog(QDialog):
     def __init__(self, customer_names=None, parent=None):
@@ -333,8 +335,10 @@ class CreateBillWindow(QMainWindow):
         screen = QApplication.primaryScreen()
         screen_size = screen.size() if screen else None
         default_width, default_height = 1280, 720
-        if screen_size and (screen_size.width() < default_width or screen_size.height() < default_height):
-            self.resize(screen_size.width() * 0.95, screen_size.height() * 0.95)
+        if screen_size:
+            width = min(default_width, screen_size.width())
+            height = min(default_height, screen_size.height())
+            self.resize(width, height)
         else:
             self.resize(default_width, default_height)
         self.setMinimumSize(800, 600)
@@ -840,9 +844,6 @@ class CreateBillWindow(QMainWindow):
         self.save_and_send_whatsapp(bill_data, customer_name, customer_phone)
         print("[INFO] WhatsApp send triggered.")
         
-        # Alert user that both actions are done
-        QMessageBox.information(self, "Bill Processed", "Thermal print and WhatsApp send have been triggered.")
-        
         # Clear the bill
         self.bill_items = []
         self.update_bill_display()
@@ -904,32 +905,44 @@ class CreateBillWindow(QMainWindow):
         shop_address = admin_details.get('address', 'Shop Address')
         shop_phone = admin_details.get('phone_number', 'Shop Phone')
         # Shop name bold, address and phone not bold, emojis
-        shop_label = QLabel(f"<b>{shop_name}</b><br/>📍 {shop_address}<br/>📞 {shop_phone}")
+        shop_label = QLabel(f"<b>{shop_name}</b><br/>📍{shop_address}<br/>📞{shop_phone}")
         shop_label.setFont(QFont("Arial", 15))
         shop_label.setAlignment(Qt.AlignCenter)
         shop_label.setStyleSheet("padding: 8px; border-bottom: 2px solid #000;")
         layout.addWidget(shop_label)
 
-        # --- BILL INFO ROW: Bill ID (left), Date (right), no customer phone ---
+        # --- BILL INFO ROW: Bill ID (left), Date (right, date only) ---
         info_row = QHBoxLayout()
         bill_id_label = QLabel(f"Bill ID: {bill_data['id']}")
         bill_id_label.setFont(QFont("Arial", 10))
         bill_id_label.setAlignment(Qt.AlignLeft)
         info_row.addWidget(bill_id_label, alignment=Qt.AlignLeft)
         info_row.addStretch()
-        # Format date/time as 12-hour with AM/PM
-        date_label = QLabel(f"Date: {datetime.now().strftime('%d/%m/%Y %I:%M:%S %p')}")
+        # Format date only
+        date_label = QLabel(f"Date: {datetime.now().strftime('%d/%m/%Y')}")
         date_label.setFont(QFont("Arial", 10))
         date_label.setAlignment(Qt.AlignRight)
         info_row.addWidget(date_label, alignment=Qt.AlignRight)
         layout.addLayout(info_row)
 
-        # --- CUSTOMER NAME (no phone) ---
+        # --- CUSTOMER NAME (left) AND TIME (right) ROW ---
+        customer_time_row = QHBoxLayout()
+        customer_time_row.setContentsMargins(0, 0, 0, 0)  # Remove all margins
+
         customer_label = QLabel(f"Customer: {bill_data['customer_name']}")
         customer_label.setFont(QFont("Arial", 10))
         customer_label.setAlignment(Qt.AlignLeft)
-        customer_label.setStyleSheet("padding: 0px 10px 10px 10px;")
-        layout.addWidget(customer_label)
+        customer_label.setStyleSheet("padding: 0px; margin: 0px;")  # Remove all padding/margin
+        customer_time_row.addWidget(customer_label, alignment=Qt.AlignLeft)
+
+        customer_time_row.addStretch()
+
+        time_label = QLabel(f"Time: {datetime.now().strftime('%I:%M %p')}")
+        time_label.setFont(QFont("Arial", 10))
+        time_label.setAlignment(Qt.AlignRight)
+        customer_time_row.addWidget(time_label, alignment=Qt.AlignRight)
+
+        layout.addLayout(customer_time_row)
 
         # --- TABLE HEADER ---
         table = QTableWidget()
@@ -1022,12 +1035,48 @@ class CreateBillWindow(QMainWindow):
         total_label.setStyleSheet("padding: 10px; background-color: #e8f4fd; border: 2px solid #3498db;")
         layout.addWidget(total_label)
 
-        # Footer
-        footer_label = QLabel(f"Thank you for shopping in {shop_name}!")
+        # Footer label with random thank you message
+        db = Database()
+        admin_details = db.get_admin_details() or {}
+        shop_name = admin_details.get('shop_name', 'Shop Name')
+        thank_you_messages = [
+            f"Thank you for shopping in {shop_name}!",
+            f"We appreciate your business at {shop_name}.",
+            f"Hope to see you again at {shop_name}!",
+            f"Your support means a lot to {shop_name}!",
+            f"Thanks for choosing {shop_name}!",
+            f"Thank you for shopping at {shop_name}! We hope you had a great experience.",
+            f"Your purchase at {shop_name} made our day!",
+            f"Thank you for trusting {shop_name}!",
+            f"{shop_name} is grateful for your business!",
+            f"Thanks for shopping local with {shop_name}!",
+        ]
+        footer_label = QLabel(random.choice(thank_you_messages))
         footer_label.setFont(QFont("Arial", 12))
         footer_label.setAlignment(Qt.AlignCenter)
-        footer_label.setStyleSheet("padding: 10px; color: #666;")
         layout.addWidget(footer_label)
+
+        # --- QR CODE (bottom left) ---
+        qr_data = admin_details.get('location', 'https://maps.app.goo.gl/qthz7Drt5WBdwBj49?g_st=aw')
+        qr = qrcode.QRCode(box_size=2, border=1)
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+        qr_size = 80
+        img = img.resize((qr_size, qr_size))
+        qimg = QImage(img.tobytes(), img.size[0], img.size[1], QImage.Format_RGB888)
+        qr_pixmap = QPixmap.fromImage(qimg)
+        qr_label = QLabel()
+        qr_label.setPixmap(qr_pixmap)
+        qr_label.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        qr_text = QLabel("Scan QR for location")
+        qr_text.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        qr_layout = QVBoxLayout()
+        qr_layout.addWidget(qr_label)
+        qr_layout.addWidget(qr_text)
+        qr_layout.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        # Add QR layout to the main layout at the bottom
+        layout.addLayout(qr_layout)
         layout.addStretch()
         return widget
 
@@ -1055,10 +1104,16 @@ class CreateBillWindow(QMainWindow):
             bill_widget = self.create_bill_widget_for_sharing(bill_data)
             # Render to QPixmap
             pixmap = bill_widget.grab()
-            # Ensure 'bills' folder exists in project root
-            bills_dir = os.path.join(os.getcwd(), 'bills')
+            # Ensure 'data_base/bills' folder exists in both development and PyInstaller modes
+            if getattr(sys, 'frozen', False):
+                # Running as a PyInstaller bundle
+                base_dir = os.path.dirname(sys.executable)
+            else:
+                # Running as a script
+                base_dir = os.getcwd()
+            bills_dir = os.path.join(base_dir, 'data_base', 'bills')
             os.makedirs(bills_dir, exist_ok=True)
-            # Save to file in 'bills' folder
+            # Save to file in 'data_base/bills' folder
             image_path = os.path.join(bills_dir, f"bill_{bill_data['id']}.png")
             pixmap.save(image_path, 'PNG')
             # Send via WhatsApp if phone number is valid
@@ -1067,10 +1122,16 @@ class CreateBillWindow(QMainWindow):
                     db = Database()
                     admin_details = db.get_admin_details() or {}
                     shop_name = admin_details.get('shop_name', 'Shop Name')
-                    message_text = f"Bill #{bill_data['id']} from {shop_name}"
+                    greetings = ["Hi", "Hello", "Hey", "Dear"]
+                    thanks = [
+                        "Thanks for shopping with us!",
+                        "We appreciate your purchase!",
+                        "Hope to see you again!",
+                    ]
+                    caption = f"{random.choice(greetings)} {customer_name},\nBill #{bill_data['id']} from {shop_name} is attached.\n{random.choice(thanks)}"
                     QMessageBox.information(self, "Debug", f"About to send bill image via WhatsApp\nNumber: {customer_phone}\nImage: {image_path}")
                     print(f"About to send bill image via WhatsApp\nNumber: {customer_phone}\nImage: {image_path}")
-                    self.send_bill_image_via_whatsapp(customer_phone, image_path, message_text)
+                    self.send_bill_image_via_whatsapp(customer_phone, image_path, caption)
                     QMessageBox.information(self, "WhatsApp", "✅ Bill sent via WhatsApp!")
                     print("✅ Bill sent via WhatsApp!")
                 except Exception as e:

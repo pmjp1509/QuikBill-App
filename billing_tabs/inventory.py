@@ -431,8 +431,10 @@ class InventoryWindow(QMainWindow):
         screen = QApplication.primaryScreen()
         screen_size = screen.size() if screen else None
         default_width, default_height = 1280, 720
-        if screen_size and (screen_size.width() < default_width or screen_size.height() < default_height):
-            self.resize(screen_size.width() * 0.95, screen_size.height() * 0.95)
+        if screen_size:
+            width = min(default_width, screen_size.width())
+            height = min(default_height, screen_size.height())
+            self.resize(width, height)
         else:
             self.resize(default_width, default_height)
         self.setMinimumSize(800, 600)

@@ -140,6 +140,7 @@ class EditDetailsDialog(QDialog):
         self.shop_name = ""
         self.address = ""
         self.phone_number = ""
+        self.location = ""
         self.accepted = False
         
         self.init_ui()
@@ -206,6 +207,22 @@ class EditDetailsDialog(QDialog):
         """)
         form_layout.addRow("Phone Number:", self.phone_edit)
         
+        self.location_edit = QLineEdit()
+        self.location_edit.setText(self.current_details.get('location', ''))
+        self.location_edit.setPlaceholderText("Enter shop location (Google Maps URL)")
+        self.location_edit.setStyleSheet("""
+            QLineEdit {
+                padding: 8px;
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+            QLineEdit:focus {
+                border-color: #3498db;
+            }
+        """)
+        form_layout.addRow("Location:", self.location_edit)
+        
         layout.addLayout(form_layout)
         
         # Buttons
@@ -261,11 +278,10 @@ class EditDetailsDialog(QDialog):
         self.shop_name = self.shop_name_edit.text().strip()
         self.address = self.address_edit.text().strip()
         self.phone_number = self.phone_edit.text().strip()
-        
-        if not self.shop_name or not self.address or not self.phone_number:
+        self.location = self.location_edit.text().strip()
+        if not self.shop_name or not self.address or not self.phone_number or not self.location:
             QMessageBox.warning(self, "Error", "Please fill in all fields.")
             return
-        
         self.accepted = True
         self.accept()
 
@@ -335,6 +351,9 @@ class AdminSettingsWindow(QMainWindow):
         
         self.phone_label = QLabel("Phone: Not set")
         self.phone_label.setStyleSheet("font-size: 14px; padding: 5px;")
+        
+        self.location_label = QLabel(f"Location: {self.admin_details['location']}")
+        shop_layout.addWidget(self.location_label)
         
         shop_layout.addWidget(self.shop_name_label)
         shop_layout.addWidget(self.address_label)
@@ -412,6 +431,7 @@ class AdminSettingsWindow(QMainWindow):
             self.shop_name_label.setText(f"Shop Name: {self.admin_details['shop_name']}")
             self.address_label.setText(f"Address: {self.admin_details['address']}")
             self.phone_label.setText(f"Phone: {self.admin_details['phone_number']}")
+            self.location_label.setText(f"Location: {self.admin_details['location']}")
             self.update_cred_toggle_btn()
     
     def edit_details(self):
@@ -422,11 +442,11 @@ class AdminSettingsWindow(QMainWindow):
             cred_dialog = CredentialsDialog(self)
             if cred_dialog.exec_() == QDialog.Accepted and cred_dialog.accepted:
                 if self.db.verify_admin_credentials(cred_dialog.username, cred_dialog.password):
-                    # Update the details
                     success = self.db.update_admin_details(
                         dialog.shop_name,
                         dialog.address,
                         dialog.phone_number,
+                        dialog.location,
                         self.admin_details['use_credentials'],
                         self.admin_details['username'],
                         self.admin_details['password']
@@ -462,6 +482,7 @@ class AdminSettingsWindow(QMainWindow):
                     self.admin_details['shop_name'],
                     self.admin_details['address'],
                     self.admin_details['phone_number'],
+                    self.admin_details['location'], # Keep existing location
                     new_state,
                     self.admin_details['username'],
                     self.admin_details['password']

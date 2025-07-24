@@ -12,7 +12,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('venv/Lib/site-packages/escpos/capabilities.json', 'escpos'),
+        ('.venv/Lib/site-packages/escpos/capabilities.json', 'escpos'),
         ('data_base/database.py', 'data_base'),
         # Do NOT include billing.db here!
         ('data_base/images/ImageNotFound.png', 'data_base/images'),
