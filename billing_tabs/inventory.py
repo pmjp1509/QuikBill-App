@@ -17,7 +17,7 @@ class BarcodeItemDialog(QDialog):
         self.item_data = item_data
         self.setWindowTitle("Add/Edit Barcode Item" if not item_data else "Edit Barcode Item")
         self.setModal(True)
-        self.resize(500, 600)
+        self.resize(500, 450)  # Reduced from 600
         
         self.init_ui()
         
@@ -26,9 +26,13 @@ class BarcodeItemDialog(QDialog):
     
     def init_ui(self):
         layout = QVBoxLayout()
+        layout.setSpacing(10)  # Reduce spacing between elements
+        layout.setContentsMargins(15, 15, 15, 15)  # Reduce margins
         
         # Create form layout
         form_layout = QGridLayout()
+        form_layout.setVerticalSpacing(8)  # Reduce vertical spacing between rows
+        form_layout.setHorizontalSpacing(15)  # Reduce horizontal spacing
         
         # Barcode
         form_layout.addWidget(QLabel("Barcode:"), 0, 0)
@@ -89,6 +93,7 @@ class BarcodeItemDialog(QDialog):
         
         # Final Price (user input) at the bottom
         final_price_layout = QHBoxLayout()
+        final_price_layout.setSpacing(10)  # Reduce spacing
         final_price_label = QLabel("Final Price (₹):")
         final_price_layout.addWidget(final_price_label)
         self.final_price_input = QDoubleSpinBox()
@@ -173,7 +178,7 @@ class LooseItemDialog(QDialog):
         self.item_data = item_data
         self.setWindowTitle("Add/Edit Loose Item")
         self.setModal(True)
-        self.resize(500, 700)
+        self.resize(500, 550)  # Reduced from 700
         
         self.init_ui()
         
@@ -182,9 +187,13 @@ class LooseItemDialog(QDialog):
     
     def init_ui(self):
         layout = QVBoxLayout()
+        layout.setSpacing(10)  # Reduce spacing between elements
+        layout.setContentsMargins(15, 15, 15, 15)  # Reduce margins
         
         # Create form layout
         form_layout = QGridLayout()
+        form_layout.setVerticalSpacing(8)  # Reduce vertical spacing between rows
+        form_layout.setHorizontalSpacing(15)  # Reduce horizontal spacing
         
         # Category
         form_layout.addWidget(QLabel("Category:"), 0, 0)
@@ -263,6 +272,7 @@ class LooseItemDialog(QDialog):
         
         # Final Price (user input) at the bottom
         final_price_layout = QHBoxLayout()
+        final_price_layout.setSpacing(10)  # Reduce spacing
         final_price_label = QLabel("Final Price per kg (₹):")
         final_price_layout.addWidget(final_price_label)
         self.final_price_input = QDoubleSpinBox()
@@ -427,384 +437,274 @@ class InventoryWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Inventory Management")
-        # Set window size based on screen resolution or sensible default
-        screen = QApplication.primaryScreen()
-        screen_size = screen.size() if screen else None
-        default_width, default_height = 1280, 720
-        if screen_size:
-            width = min(default_width, screen_size.width())
-            height = min(default_height, screen_size.height())
-            self.resize(width, height)
-        else:
-            self.resize(default_width, default_height)
-        self.setMinimumSize(800, 600)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        
+        self.setMinimumSize(900, 600)
         self.db = Database()
-        
         self.init_ui()
         self.load_data()
-    
+
     def init_ui(self):
-        """Initialize the user interface"""
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        
         main_layout = QVBoxLayout()
         central_widget.setLayout(main_layout)
-        
+
         # Header
         header_label = QLabel("Inventory Management")
-        header_label.setFont(QFont("Arial", 18, QFont.Bold))
+        header_label.setFont(QFont("Poppins", 22, QFont.Bold))
         header_label.setAlignment(Qt.AlignCenter)
-        header_label.setStyleSheet("""
-            QLabel {
-                color: #2c3e50;
-                padding: 15px;
-                background-color: #ecf0f1;
-                border-radius: 8px;
-                margin-bottom: 10px;
-            }
-        """)
         main_layout.addWidget(header_label)
-        
-        # Tab widget
+
+        # Tabs
         self.tab_widget = QTabWidget()
         main_layout.addWidget(self.tab_widget)
-        
+
         # Barcode Items Tab
         self.barcode_tab = QWidget()
         self.init_barcode_tab()
         self.tab_widget.addTab(self.barcode_tab, "Barcode Items")
-        
+
         # Loose Items Tab
         self.loose_tab = QWidget()
         self.init_loose_tab()
         self.tab_widget.addTab(self.loose_tab, "Loose Items")
-        
-        # Set main window style
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #f8f9fa;
-            }
-            QTableWidget {
-                background-color: white;
-                gridline-color: #dee2e6;
-                font-size: 12px;
-            }
-            QTableWidget::item {
-                padding: 8px;
-                font-size: 12px;
-            }
-            QHeaderView::section {
-                background-color: #e9ecef;
-                padding: 8px;
-                font-weight: bold;
-                border: 1px solid #dee2e6;
-                font-size: 12px;
-            }
-        """)
-    
+
+        # Set global font to Poppins for the entire inventory window
+        poppins_font = QFont("Poppins", 12)
+        self.setFont(poppins_font)
+
+        # Make all table headers bold
+        self.setStyleSheet(self.styleSheet() + "\nQHeaderView::section { font-weight: bold; }")
+
     def init_barcode_tab(self):
-        """Initialize barcode items tab"""
         layout = QVBoxLayout()
         self.barcode_tab.setLayout(layout)
-        
+
         # Controls
         controls_layout = QHBoxLayout()
-        
-        add_barcode_btn = QPushButton("Add Barcode Item")
-        add_barcode_btn.setFont(QFont("Arial", 12))
-        add_barcode_btn.clicked.connect(self.add_barcode_item)
-        add_barcode_btn.setStyleSheet("""
+        add_btn = QPushButton("Add Barcode Item")
+        add_btn.setFont(QFont("Poppins", 12))
+        add_btn.setStyleSheet("""
             QPushButton {
                 background-color: #28a745;
                 color: white;
                 border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
+                border-radius: 6px;
+                padding: 8px 18px;
             }
             QPushButton:hover {
                 background-color: #218838;
             }
         """)
-        controls_layout.addWidget(add_barcode_btn)
-
-        controls_layout.addStretch()
-
-        # Move Upload CSV to left of Refresh
-        upload_barcode_csv_btn = QPushButton("Upload CSV")
-        upload_barcode_csv_btn.setFont(QFont("Arial", 12))
-        upload_barcode_csv_btn.setStyleSheet("""
+        add_btn.clicked.connect(self.add_barcode_item)
+        controls_layout.addWidget(add_btn)
+        upload_btn = QPushButton("Upload CSV")
+        upload_btn.setFont(QFont("Poppins", 12))
+        upload_btn.setStyleSheet("""
             QPushButton {
-                background-color: #28a745;
+                background-color: #f39c12;
                 color: white;
                 border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
+                border-radius: 6px;
+                padding: 8px 18px;
             }
             QPushButton:hover {
-                background-color: #218838;
-                border: 2px solid #145a32;
+                background-color: #e67e22;
             }
         """)
-        upload_barcode_csv_btn.clicked.connect(self.upload_barcode_csv)
-        controls_layout.addWidget(upload_barcode_csv_btn)
-
-        refresh_barcode_btn = QPushButton("Refresh")
-        refresh_barcode_btn.setFont(QFont("Arial", 12))
-        refresh_barcode_btn.clicked.connect(self.load_barcode_items)
-        refresh_barcode_btn.setStyleSheet("""
+        upload_btn.clicked.connect(self.upload_barcode_csv)
+        controls_layout.addWidget(upload_btn)
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.setFont(QFont("Poppins", 12))
+        refresh_btn.setStyleSheet("""
             QPushButton {
                 background-color: #17a2b8;
                 color: white;
                 border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
+                border-radius: 6px;
+                padding: 8px 18px;
             }
             QPushButton:hover {
                 background-color: #138496;
             }
         """)
-        controls_layout.addWidget(refresh_barcode_btn)
-        
+        refresh_btn.clicked.connect(self.load_barcode_items)
+        controls_layout.addWidget(refresh_btn)
+        controls_layout.addStretch()
         layout.addLayout(controls_layout)
-        
+
         # Table
         self.barcode_table = QTableWidget()
         self.barcode_table.setColumnCount(10)
         self.barcode_table.setHorizontalHeaderLabels([
             "ID", "Barcode", "Name", "HSN Code", "Quantity", "Base Price", "SGST %", "CGST %", "Total Price", "Actions"
         ])
-        
-        # Table settings
         self.barcode_table.setAlternatingRowColors(True)
         self.barcode_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        
-        # Set proper row height for buttons
-        self.barcode_table.verticalHeader().setDefaultSectionSize(70)
-        
-        # Set column widths
+        self.barcode_table.verticalHeader().setDefaultSectionSize(40)
         header = self.barcode_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # ID
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Barcode
-        header.setSectionResizeMode(2, QHeaderView.Stretch)  # Name
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # HSN Code
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Quantity
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Base Price
-        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # SGST %
-        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # CGST %
-        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # Total Price
-        header.setSectionResizeMode(9, QHeaderView.ResizeToContents)  # Actions
-        
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.Stretch)
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(9, QHeaderView.ResizeToContents)
         layout.addWidget(self.barcode_table)
-    
+
     def init_loose_tab(self):
-        """Initialize loose items tab"""
         layout = QVBoxLayout()
         self.loose_tab.setLayout(layout)
-        
+
         # Controls
         controls_layout = QHBoxLayout()
-        
-        add_category_btn = QPushButton("Add Category")
-        add_category_btn.setFont(QFont("Arial", 12))
-        add_category_btn.clicked.connect(self.add_category)
-        add_category_btn.setStyleSheet("""
+        add_cat_btn = QPushButton("Add Category")
+        add_cat_btn.setFont(QFont("Poppins", 12))
+        add_cat_btn.setStyleSheet("""
             QPushButton {
-                background-color: #ffc107;
-                color: black;
+                background-color: #28a745;
+                color: white;
                 border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
+                border-radius: 6px;
+                padding: 8px 18px;
             }
             QPushButton:hover {
-                background-color: #e0a800;
+                background-color: #218838;
             }
         """)
-        controls_layout.addWidget(add_category_btn)
-
-        delete_category_btn = QPushButton("Delete Category")
-        delete_category_btn.setFont(QFont("Arial", 12))
-        delete_category_btn.setStyleSheet("""
+        add_cat_btn.clicked.connect(self.add_category)
+        controls_layout.addWidget(add_cat_btn)
+        del_cat_btn = QPushButton("Delete Category")
+        del_cat_btn.setFont(QFont("Poppins", 12))
+        del_cat_btn.setStyleSheet("""
             QPushButton {
                 background-color: #e74c3c;
                 color: white;
                 border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
+                border-radius: 6px;
+                padding: 8px 18px;
             }
             QPushButton:hover {
                 background-color: #c0392b;
             }
         """)
-        delete_category_btn.clicked.connect(self.delete_category)
-        controls_layout.addWidget(delete_category_btn)
-        
+        del_cat_btn.clicked.connect(self.delete_category)
+        controls_layout.addWidget(del_cat_btn)
         add_loose_btn = QPushButton("Add Loose Item")
-        add_loose_btn.setFont(QFont("Arial", 12))
-        add_loose_btn.clicked.connect(self.add_loose_item)
+        add_loose_btn.setFont(QFont("Poppins", 12))
         add_loose_btn.setStyleSheet("""
             QPushButton {
                 background-color: #28a745;
                 color: white;
                 border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
+                border-radius: 6px;
+                padding: 8px 18px;
             }
             QPushButton:hover {
                 background-color: #218838;
             }
         """)
+        add_loose_btn.clicked.connect(self.add_loose_item)
         controls_layout.addWidget(add_loose_btn)
-
-        controls_layout.addStretch()
-
-        # Move Upload CSV to left of Refresh
-        upload_loose_csv_btn = QPushButton("Upload CSV")
-        upload_loose_csv_btn.setFont(QFont("Arial", 12))
-        upload_loose_csv_btn.setStyleSheet("""
+        upload_btn = QPushButton("Upload CSV")
+        upload_btn.setFont(QFont("Poppins", 12))
+        upload_btn.setStyleSheet("""
             QPushButton {
-                background-color: #28a745;
+                background-color: #f39c12;
                 color: white;
                 border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
+                border-radius: 6px;
+                padding: 8px 18px;
             }
             QPushButton:hover {
-                background-color: #218838;
-                border: 2px solid #145a32;
+                background-color: #e67e22;
             }
         """)
-        upload_loose_csv_btn.clicked.connect(self.upload_loose_csv)
-        controls_layout.addWidget(upload_loose_csv_btn)
-
-        refresh_loose_btn = QPushButton("Refresh")
-        refresh_loose_btn.setFont(QFont("Arial", 12))
-        refresh_loose_btn.clicked.connect(self.load_loose_items)
-        refresh_loose_btn.setStyleSheet("""
+        upload_btn.clicked.connect(self.upload_loose_csv)
+        controls_layout.addWidget(upload_btn)
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.setFont(QFont("Poppins", 12))
+        refresh_btn.setStyleSheet("""
             QPushButton {
                 background-color: #17a2b8;
                 color: white;
                 border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
+                border-radius: 6px;
+                padding: 8px 18px;
             }
             QPushButton:hover {
                 background-color: #138496;
             }
         """)
-        controls_layout.addWidget(refresh_loose_btn)
-        
+        refresh_btn.clicked.connect(self.load_loose_items)
+        controls_layout.addWidget(refresh_btn)
+        controls_layout.addStretch()
         layout.addLayout(controls_layout)
-        
-        # Category filter
-        filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("Filter by Category:"))
-        self.category_filter = QComboBox()
-        self.category_filter.setFont(QFont("Arial", 12))
-        self.category_filter.addItem("All")
-        for cat in self.db.get_loose_categories():
-            self.category_filter.addItem(cat['name'])
-        self.category_filter.currentIndexChanged.connect(self.apply_loose_category_filter)
-        filter_layout.addWidget(self.category_filter)
-        filter_layout.addStretch()
-        layout.addLayout(filter_layout)
-        
+
         # Table
         self.loose_table = QTableWidget()
         self.loose_table.setColumnCount(11)
         self.loose_table.setHorizontalHeaderLabels([
             "ID", "Category", "Name", "HSN Code", "Quantity", "Base Price/kg", "SGST %", "CGST %", "Total Price/kg", "Image", "Actions"
         ])
-        
-        # Table settings
         self.loose_table.setAlternatingRowColors(True)
         self.loose_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        
-        # Set proper row height for buttons
-        self.loose_table.verticalHeader().setDefaultSectionSize(70)
-        
-        # Set column widths
+        self.loose_table.verticalHeader().setDefaultSectionSize(40)
         header = self.loose_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # ID
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Category
-        header.setSectionResizeMode(2, QHeaderView.Stretch)  # Name
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # HSN Code
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Quantity
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Base Price/kg
-        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # SGST %
-        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # CGST %
-        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # Total Price/kg
-        header.setSectionResizeMode(9, QHeaderView.ResizeToContents)  # Image
-        header.setSectionResizeMode(10, QHeaderView.ResizeToContents)  # Actions
-        
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.Stretch)
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(9, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(10, QHeaderView.ResizeToContents)
         layout.addWidget(self.loose_table)
-    
+
+    # --- Barcode Items Logic ---
     def load_data(self):
-        """Load all data"""
         self.load_barcode_items()
         self.load_loose_items()
-    
+
     def load_barcode_items(self):
-        """Load barcode items"""
-        try:
-            items = self.db.get_all_barcode_items()
-            self.display_barcode_items(items)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to load barcode items: {str(e)}")
-    
+        items = self.db.get_all_barcode_items()
+        self.display_barcode_items(items)
+
     def display_barcode_items(self, items):
-        """Display barcode items in table"""
         self.barcode_table.setRowCount(len(items))
-        
         for row, item in enumerate(items):
-            # ID
             self.barcode_table.setItem(row, 0, QTableWidgetItem(str(item['id'])))
-            
-            # Barcode
             self.barcode_table.setItem(row, 1, QTableWidgetItem(item['barcode']))
-            
-            # Name
             self.barcode_table.setItem(row, 2, QTableWidgetItem(item['name']))
-            
-            # HSN Code
             self.barcode_table.setItem(row, 3, QTableWidgetItem(item.get('hsn_code', '')))
-            
-            # Quantity
             self.barcode_table.setItem(row, 4, QTableWidgetItem(str(item.get('quantity', 0))))
-            
-            # Base Price
             base_price = item.get('base_price', item.get('price', 0))
             self.barcode_table.setItem(row, 5, QTableWidgetItem(f"₹{base_price:.2f}"))
-            
-            # SGST %
             self.barcode_table.setItem(row, 6, QTableWidgetItem(f"{item.get('sgst_percent', 0):.2f}%"))
-            
-            # CGST %
             self.barcode_table.setItem(row, 7, QTableWidgetItem(f"{item.get('cgst_percent', 0):.2f}%"))
-            
-            # Total Price
             total_price = item.get('total_price', base_price)
             self.barcode_table.setItem(row, 8, QTableWidgetItem(f"₹{total_price:.2f}"))
-            
             # Actions
             actions_widget = QWidget()
             actions_layout = QHBoxLayout()
-            actions_layout.setContentsMargins(10, 10, 10, 10)
-            actions_layout.setSpacing(15)
-            
+            actions_layout.setContentsMargins(0, 0, 0, 0)
+            actions_layout.setSpacing(8)
             edit_btn = QPushButton("Edit")
+            edit_btn.setMinimumHeight(32)
+            edit_btn.setMaximumHeight(32)
+            edit_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             edit_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #17a2b8;
                     color: white;
                     border: none;
-                    border-radius: 5px;
-                    padding: 8px 12px;
+                    border-radius: 4px;
                     font-size: 11px;
-                    min-width: 60px;
-                    min-height: 30px;
                 }
                 QPushButton:hover {
                     background-color: #138496;
@@ -812,18 +712,17 @@ class InventoryWindow(QMainWindow):
             """)
             edit_btn.clicked.connect(lambda checked, item_data=item: self.edit_barcode_item(item_data))
             actions_layout.addWidget(edit_btn)
-            
             delete_btn = QPushButton("Delete")
+            delete_btn.setMinimumHeight(32)
+            delete_btn.setMaximumHeight(32)
+            delete_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             delete_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #e74c3c;
                     color: white;
                     border: none;
-                    border-radius: 5px;
-                    padding: 8px 12px;
+                    border-radius: 4px;
                     font-size: 11px;
-                    min-width: 60px;
-                    min-height: 30px;
                 }
                 QPushButton:hover {
                     background-color: #c0392b;
@@ -831,114 +730,11 @@ class InventoryWindow(QMainWindow):
             """)
             delete_btn.clicked.connect(lambda checked, item_id=item['id']: self.delete_barcode_item(item_id))
             actions_layout.addWidget(delete_btn)
-            
             actions_widget.setLayout(actions_layout)
             self.barcode_table.setCellWidget(row, 9, actions_widget)
-    
-    def load_loose_items(self):
-        """Load loose items"""
-        try:
-            categories = self.db.get_loose_categories()
-            all_items = []
-            
-            for category in categories:
-                items = self.db.get_loose_items_by_category(category['id'])
-                for item in items:
-                    item['category_name'] = category['name']
-                    item['category_id'] = category['id']
-                    all_items.append(item)
-            
-            self.display_loose_items(all_items)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to load loose items: {str(e)}")
-    
-    def display_loose_items(self, items):
-        """Display loose items in table"""
-        self.loose_table.setRowCount(len(items))
-        
-        for row, item in enumerate(items):
-            # ID
-            self.loose_table.setItem(row, 0, QTableWidgetItem(str(item['id'])))
-            
-            # Category
-            self.loose_table.setItem(row, 1, QTableWidgetItem(item['category_name']))
-            
-            # Name
-            self.loose_table.setItem(row, 2, QTableWidgetItem(item['name']))
-            
-            # HSN Code
-            self.loose_table.setItem(row, 3, QTableWidgetItem(item.get('hsn_code', '')))
-            
-            # Quantity
-            self.loose_table.setItem(row, 4, QTableWidgetItem(str(item.get('quantity', 0))))
-            
-            # Base Price/kg
-            base_price = item.get('base_price', item.get('price_per_kg', 0))
-            self.loose_table.setItem(row, 5, QTableWidgetItem(f"₹{base_price:.2f}"))
-            
-            # SGST %
-            self.loose_table.setItem(row, 6, QTableWidgetItem(f"{item.get('sgst_percent', 0):.2f}%"))
-            
-            # CGST %
-            self.loose_table.setItem(row, 7, QTableWidgetItem(f"{item.get('cgst_percent', 0):.2f}%"))
-            
-            # Total Price/kg
-            total_price = item.get('total_price', base_price)
-            self.loose_table.setItem(row, 8, QTableWidgetItem(f"₹{total_price:.2f}"))
-            
-            # Image
-            image_text = "Yes" if item.get('image_path') else "No"
-            self.loose_table.setItem(row, 9, QTableWidgetItem(image_text))
-            
-            # Actions
-            actions_widget = QWidget()
-            actions_layout = QHBoxLayout()
-            actions_layout.setContentsMargins(10, 10, 10, 10)
-            actions_layout.setSpacing(15)
-            
-            edit_btn = QPushButton("Edit")
-            edit_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #17a2b8;
-                    color: white;
-                    border: none;
-                    border-radius: 5px;
-                    padding: 8px 12px;
-                    font-size: 11px;
-                    min-width: 60px;
-                    min-height: 30px;
-                }
-                QPushButton:hover {
-                    background-color: #138496;
-                }
-            """)
-            edit_btn.clicked.connect(lambda checked, item_data=item: self.edit_loose_item(item_data))
-            actions_layout.addWidget(edit_btn)
-            
-            delete_btn = QPushButton("Delete")
-            delete_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #e74c3c;
-                    color: white;
-                    border: none;
-                    border-radius: 5px;
-                    padding: 8px 12px;
-                    font-size: 11px;
-                    min-width: 60px;
-                    min-height: 30px;
-                }
-                QPushButton:hover {
-                    background-color: #c0392b;
-                }
-            """)
-            delete_btn.clicked.connect(lambda checked, item_id=item['id']: self.delete_loose_item(item_id))
-            actions_layout.addWidget(delete_btn)
-            
-            actions_widget.setLayout(actions_layout)
-            self.loose_table.setCellWidget(row, 10, actions_widget)
-    
+            self.barcode_table.setRowHeight(row, 40)
+
     def add_barcode_item(self):
-        """Add new barcode item"""
         dialog = BarcodeItemDialog(parent=self)
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_item_data()
@@ -950,7 +746,6 @@ class InventoryWindow(QMainWindow):
                 QMessageBox.warning(self, "Error", "Failed to add barcode item. Barcode might already exist.")
     
     def edit_barcode_item(self, item_data):
-        """Edit barcode item"""
         dialog = BarcodeItemDialog(item_data, parent=self)
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_item_data()
@@ -962,7 +757,6 @@ class InventoryWindow(QMainWindow):
                 QMessageBox.warning(self, "Error", "Failed to update barcode item.")
     
     def delete_barcode_item(self, item_id):
-        """Delete barcode item"""
         reply = QMessageBox.question(
             self, "Confirm Delete", 
             "Are you sure you want to delete this barcode item?",
@@ -976,8 +770,101 @@ class InventoryWindow(QMainWindow):
             else:
                 QMessageBox.warning(self, "Error", "Failed to delete barcode item.")
     
+    def upload_barcode_csv(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select CSV File", "", 
+            "CSV Files (*.csv);;All Files (*)"
+        )
+        if file_path:
+            try:
+                success, fail, fail_rows = self.db.import_barcode_items_from_csv(file_path)
+                msg = f"Successfully added: {success}\nSkipped: {fail}"
+                if fail_rows:
+                    msg += "\n\nRows skipped due to errors:\n"
+                    msg += "\n".join([f"Row {row}: {reason}" for row, reason in fail_rows])
+                QMessageBox.information(self, "CSV Import Result", msg)
+                self.load_barcode_items()
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to import barcode items from CSV: {e}")
+
+    # --- Loose Items Logic ---
+    def load_loose_items(self):
+        categories = self.db.get_loose_categories()
+        all_items = []
+        for category in categories:
+            items = self.db.get_loose_items_by_category(category['id'])
+            for item in items:
+                item['category_name'] = category['name']
+                item['category_id'] = category['id']
+                all_items.append(item)
+        self.display_loose_items(all_items)
+
+    def display_loose_items(self, items):
+        self.loose_table.setRowCount(len(items))
+        for row, item in enumerate(items):
+            self.loose_table.setItem(row, 0, QTableWidgetItem(str(item['id'])))
+            self.loose_table.setItem(row, 1, QTableWidgetItem(item['category_name']))
+            self.loose_table.setItem(row, 2, QTableWidgetItem(item['name']))
+            self.loose_table.setItem(row, 3, QTableWidgetItem(item.get('hsn_code', '')))
+            self.loose_table.setItem(row, 4, QTableWidgetItem(str(item.get('quantity', 0))))
+            base_price = item.get('base_price', item.get('price_per_kg', 0))
+            self.loose_table.setItem(row, 5, QTableWidgetItem(f"₹{base_price:.2f}"))
+            self.loose_table.setItem(row, 6, QTableWidgetItem(f"{item.get('sgst_percent', 0):.2f}%"))
+            self.loose_table.setItem(row, 7, QTableWidgetItem(f"{item.get('cgst_percent', 0):.2f}%"))
+            total_price = item.get('total_price', base_price)
+            self.loose_table.setItem(row, 8, QTableWidgetItem(f"₹{total_price:.2f}"))
+            # Image
+            image_text = "Yes" if item.get('image_path') else "No"
+            self.loose_table.setItem(row, 9, QTableWidgetItem(image_text))
+            # Actions
+            actions_widget = QWidget()
+            actions_layout = QHBoxLayout()
+            actions_layout.setContentsMargins(0, 0, 0, 0)
+            actions_layout.setSpacing(8)
+
+            edit_btn = QPushButton("Edit")
+            edit_btn.setMinimumHeight(32)
+            edit_btn.setMaximumHeight(32)
+            edit_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            edit_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #17a2b8;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    font-size: 11px;
+                }
+                QPushButton:hover {
+                    background-color: #138496;
+                }
+            """)
+            edit_btn.clicked.connect(lambda checked, item_data=item: self.edit_loose_item(item_data))
+            actions_layout.addWidget(edit_btn)
+
+            delete_btn = QPushButton("Delete")
+            delete_btn.setMinimumHeight(32)
+            delete_btn.setMaximumHeight(32)
+            delete_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            delete_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #e74c3c;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    font-size: 11px;
+                }
+                QPushButton:hover {
+                    background-color: #c0392b;
+                }
+            """)
+            delete_btn.clicked.connect(lambda checked, item_id=item['id']: self.delete_loose_item(item_id))
+            actions_layout.addWidget(delete_btn)
+
+            actions_widget.setLayout(actions_layout)
+            self.loose_table.setCellWidget(row, 10, actions_widget)
+            self.loose_table.setRowHeight(row, 40)
+
     def add_category(self):
-        """Add new category"""
         dialog = CategoryDialog(parent=self)
         if dialog.exec_() == QDialog.Accepted:
             category_name = dialog.get_category_name()
@@ -1016,7 +903,6 @@ class InventoryWindow(QMainWindow):
                     QMessageBox.warning(self, "Error", "Category not found.")
     
     def add_loose_item(self):
-        """Add new loose item"""
         categories = self.db.get_loose_categories()
         if not categories:
             QMessageBox.warning(self, "Error", "Please add at least one category first!")
@@ -1033,7 +919,6 @@ class InventoryWindow(QMainWindow):
                 QMessageBox.warning(self, "Error", "Failed to add loose item.")
     
     def edit_loose_item(self, item_data):
-        """Edit loose item"""
         categories = self.db.get_loose_categories()
         dialog = LooseItemDialog(categories, item_data, parent=self)
         if dialog.exec_() == QDialog.Accepted:
@@ -1046,7 +931,6 @@ class InventoryWindow(QMainWindow):
                 QMessageBox.warning(self, "Error", "Failed to update loose item.")
     
     def delete_loose_item(self, item_id):
-        """Delete loose item"""
         reply = QMessageBox.question(
             self, "Confirm Delete", 
             "Are you sure you want to delete this loose item?",
@@ -1060,26 +944,7 @@ class InventoryWindow(QMainWindow):
             else:
                 QMessageBox.warning(self, "Error", "Failed to delete loose item.")
 
-    def upload_barcode_csv(self):
-        """Handle CSV upload for barcode items"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select CSV File", "", 
-            "CSV Files (*.csv);;All Files (*)"
-        )
-        if file_path:
-            try:
-                success, fail, fail_rows = self.db.import_barcode_items_from_csv(file_path)
-                msg = f"Successfully added: {success}\nSkipped: {fail}"
-                if fail_rows:
-                    msg += "\n\nRows skipped due to errors:\n"
-                    msg += "\n".join([f"Row {row}: {reason}" for row, reason in fail_rows])
-                QMessageBox.information(self, "CSV Import Result", msg)
-                self.load_barcode_items()
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"Failed to import barcode items from CSV: {e}")
-
     def upload_loose_csv(self):
-        """Handle CSV upload for loose items"""
         file_path, _ = QFileDialog.getOpenFileName(
             self, "Select CSV File", "", 
             "CSV Files (*.csv);;All Files (*)"
@@ -1144,7 +1009,6 @@ class InventoryWindow(QMainWindow):
         super().changeEvent(event)
 
 if __name__ == "__main__":
-    from PyQt5.QtWidgets import QApplication
     app = QApplication(sys.argv)
     window = InventoryWindow()
     window.showMaximized()

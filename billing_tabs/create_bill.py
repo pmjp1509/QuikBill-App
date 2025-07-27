@@ -56,7 +56,7 @@ class CustomerInfoDialog(QDialog):
         self.name_input.textChanged.connect(self.clear_phone_if_name_changed)
         
         # Customer Phone
-        layout.addWidget(QLabel("Customer Phone (Optional):"))
+        layout.addWidget(QLabel("Customer Phone (Required):"))
         self.phone_input = QLineEdit()
         self.phone_input.setFont(QFont("Arial", 12))
         layout.addWidget(self.phone_input)
@@ -384,13 +384,13 @@ class CreateBillWindow(QMainWindow):
         self.bill_table = QTableWidget()
         self.bill_table.setColumnCount(9)
         self.bill_table.setHorizontalHeaderLabels([
-            "Item Name", "HSN", "Qty", "Base Price", "SGST%", "CGST%", "Final Price", "Actions", "Remove"
+            "Item Name", "HSN", "Qty", "Rate", "SGST%", "CGST%", "Final Price", "Actions", "Remove"
         ])
         self.bill_table.setAlternatingRowColors(True)
         left_layout.addWidget(self.bill_table)
         
         header = self.bill_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)  # Item Name
+        header.setSectionResizeMode(0, QHeaderView.Stretch)  # Item Name - stretch to fill space
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # HSN
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Qty
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Base Price
@@ -398,7 +398,13 @@ class CreateBillWindow(QMainWindow):
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # CGST%
         header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Final Price
         header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # Actions
-        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # Remove
+        header.setSectionResizeMode(8, QHeaderView.Fixed)  # Remove - fixed width
+        
+        # Set specific column widths
+        self.bill_table.setColumnWidth(8, 90)   # Remove column width
+        
+        # Set row height (increased by 20%)
+        self.bill_table.verticalHeader().setDefaultSectionSize(36)  # Increased from 30
         
         # Totals panel
         totals_frame = QFrame()
@@ -501,6 +507,7 @@ class CreateBillWindow(QMainWindow):
             QHeaderView::section {
                 font-size: 12px;
                 padding: 5px;
+                font-weight: bold;
             }
         """)
     
@@ -673,13 +680,14 @@ class CreateBillWindow(QMainWindow):
             
             # Remove button
             remove_btn = QPushButton("Remove")
+            remove_btn.setMinimumWidth(80)
             remove_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #e74c3c;
                     color: white;
                     border: none;
                     border-radius: 3px;
-                    padding: 3px 10px;
+                    padding: 8px 12px;
                     font-size: 10px;
                 }
                 QPushButton:hover {
@@ -714,25 +722,41 @@ class CreateBillWindow(QMainWindow):
     def increase_quantity(self, row):
         """Increase item quantity"""
         if row < len(self.bill_items):
-            if self.bill_items[row]['item_type'] == 'barcode':
-                self.bill_items[row]['quantity'] += 1
+            item = self.bill_items[row]
+            if item['item_type'] == 'barcode':
+                item['quantity'] += 1
             else:
-                self.bill_items[row]['quantity'] += 0.1
-            self.calculate_item_totals(self.bill_items[row])
+                item['quantity'] += 0.1
+                # Recalculate base_price for loose items
+                divisor = 1 + (item.get('sgst_percent', 0) + item.get('cgst_percent', 0)) / 100
+                final_price_per_unit = item['base_price'] * divisor
+                if final_price_per_unit == 0:
+                    item['base_price'] = 0
+                else:
+                    item['base_price'] = final_price_per_unit / divisor if divisor != 0 else 0
+            self.calculate_item_totals(item)
             self.update_bill_display()
     
     def decrease_quantity(self, row):
         """Decrease item quantity"""
         if row < len(self.bill_items):
-            if self.bill_items[row]['item_type'] == 'barcode':
-                if self.bill_items[row]['quantity'] > 1:
-                    self.bill_items[row]['quantity'] -= 1
-                    self.calculate_item_totals(self.bill_items[row])
+            item = self.bill_items[row]
+            if item['item_type'] == 'barcode':
+                if item['quantity'] > 1:
+                    item['quantity'] -= 1
+                    self.calculate_item_totals(item)
                     self.update_bill_display()
             else:  # loose item
-                if self.bill_items[row]['quantity'] > 0.1:
-                    self.bill_items[row]['quantity'] -= 0.1
-                    self.calculate_item_totals(self.bill_items[row])
+                if item['quantity'] > 0.1:
+                    item['quantity'] -= 0.1
+                    # Recalculate base_price for loose items
+                    divisor = 1 + (item.get('sgst_percent', 0) + item.get('cgst_percent', 0)) / 100
+                    final_price_per_unit = item['base_price'] * divisor
+                    if final_price_per_unit == 0:
+                        item['base_price'] = 0
+                    else:
+                        item['base_price'] = final_price_per_unit / divisor if divisor != 0 else 0
+                    self.calculate_item_totals(item)
                     self.update_bill_display()
     
     def edit_item(self, row):
@@ -742,21 +766,27 @@ class CreateBillWindow(QMainWindow):
         item = self.bill_items[row]
         if item['item_type'] == 'loose':
             # Prepare item_data for dialog
+            divisor = 1 + (item.get('sgst_percent', 0) + item.get('cgst_percent', 0)) / 100
+            per_unit_final_price = item['base_price'] * divisor
             item_data = {
                 'name': item['name'],
                 'hsn_code': item.get('hsn_code', ''),
                 'sgst_percent': item.get('sgst_percent', 0),
                 'cgst_percent': item.get('cgst_percent', 0),
-                'total_price': item.get('final_price', 0),
+                'total_price': per_unit_final_price,
             }
             dialog = LooseItemDialog(item_data, self)
             dialog.quantity_input.setValue(item['quantity'])
-            dialog.final_price_input.setValue(item.get('final_price', 0))
+            dialog.final_price_input.setValue(per_unit_final_price)
             if dialog.exec_() == QDialog.Accepted:
                 item['quantity'] = dialog.quantity
-                item['base_price'] = dialog.base_price
-                item['final_price'] = dialog.final_price
-                # SGST/CGST remain from DB
+                # Always recalculate base_price from final_price
+                final_price = dialog.final_price_input.value()
+                divisor = 1 + (item.get('sgst_percent', 0) + item.get('cgst_percent', 0)) / 100
+                if final_price == 0:
+                    item['base_price'] = 0
+                else:
+                    item['base_price'] = final_price / divisor if divisor != 0 else 0
                 self.calculate_item_totals(item)
                 self.update_bill_display()
         else:

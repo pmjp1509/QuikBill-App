@@ -6,8 +6,6 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QCheckBox, QProgressBar, QTextEdit)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont, QPixmap, QPainter
-import pywhatkit
-from datetime import datetime, timedelta
 
 class WhatsAppSender(QThread):
     """Thread for sending WhatsApp message to avoid blocking UI"""
@@ -20,7 +18,11 @@ class WhatsAppSender(QThread):
     
     def run(self):
         try:
+            # Import pywhatkit only when needed
+            import pywhatkit
+            from pywhatkit.core.exceptions import InternetException
             # Calculate time 2 minutes from now to allow WhatsApp Web to load
+            from datetime import datetime, timedelta
             now = datetime.now()
             send_time = now + timedelta(minutes=2)
             
@@ -36,6 +38,8 @@ class WhatsAppSender(QThread):
             
             self.finished.emit(True, "Bill sent successfully via WhatsApp!")
             
+        except InternetException:
+            self.finished.emit(False, "No internet connection. WhatsApp sending requires internet.")
         except Exception as e:
             self.finished.emit(False, f"Failed to send WhatsApp message: {str(e)}")
 

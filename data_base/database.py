@@ -111,6 +111,7 @@ class Database:
                 shop_name TEXT NOT NULL DEFAULT 'My Shop',
                 address TEXT NOT NULL DEFAULT 'Shop Address',
                 phone_number TEXT NOT NULL DEFAULT '1234567890',
+                gmail TEXT NOT NULL DEFAULT '',
                 use_credentials BOOLEAN NOT NULL DEFAULT 0,
                 username TEXT NOT NULL DEFAULT 'admin',
                 password TEXT NOT NULL DEFAULT 'admin123',
@@ -118,6 +119,13 @@ class Database:
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        # --- MIGRATION: Ensure 'location' and 'gmail' columns exist ---
+        cursor.execute("PRAGMA table_info(admin_details)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if 'location' not in columns:
+            cursor.execute("ALTER TABLE admin_details ADD COLUMN location TEXT DEFAULT ''")
+        if 'gmail' not in columns:
+            cursor.execute("ALTER TABLE admin_details ADD COLUMN gmail TEXT DEFAULT ''")
         
         # Migrate existing data if needed
         self._migrate_existing_data(cursor)
@@ -253,9 +261,9 @@ class Database:
         cursor.execute('SELECT COUNT(*) FROM admin_details')
         if cursor.fetchone()[0] == 0:
             cursor.execute('''
-                INSERT INTO admin_details (shop_name, address, phone_number, use_credentials, username, password) 
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', ('My Shop', 'Shop Address', '1234567890', False, 'admin', 'admin123'))
+                INSERT INTO admin_details (shop_name, address, phone_number, gmail, use_credentials, username, password) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', ('My Shop', 'Shop Address', '1234567890', '', False, 'admin', 'admin123'))
     
     def get_connection(self):
         """Get database connection"""
@@ -633,39 +641,120 @@ class Database:
         """Get admin details"""
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('''
-            SELECT shop_name, address, phone_number, use_credentials, username, password 
-            FROM admin_details ORDER BY id LIMIT 1
-        ''')
+        # Check if 'location' and 'gmail' columns exist
+        cursor.execute("PRAGMA table_info(admin_details)")
+        columns = [col[1] for col in cursor.fetchall()]
+        has_location = 'location' in columns
+        has_gmail = 'gmail' in columns
+        if has_location and has_gmail:
+            cursor.execute('''
+                SELECT shop_name, address, phone_number, gmail, use_credentials, username, password, location 
+                FROM admin_details ORDER BY id LIMIT 1
+            ''')
+        elif has_location:
+            cursor.execute('''
+                SELECT shop_name, address, phone_number, use_credentials, username, password, location 
+                FROM admin_details ORDER BY id LIMIT 1
+            ''')
+        elif has_gmail:
+            cursor.execute('''
+                SELECT shop_name, address, phone_number, gmail, use_credentials, username, password 
+                FROM admin_details ORDER BY id LIMIT 1
+            ''')
+        else:
+            cursor.execute('''
+                SELECT shop_name, address, phone_number, use_credentials, username, password 
+                FROM admin_details ORDER BY id LIMIT 1
+            ''')
         result = cursor.fetchone()
         conn.close()
-        
         if result:
-            return {
-                'shop_name': result[0],
-                'address': result[1],
-                'phone_number': result[2],
-                'use_credentials': bool(result[3]),
-                'username': result[4],
-                'password': result[5]
-            }
+            if has_location and has_gmail:
+                return {
+                    'shop_name': result[0],
+                    'address': result[1],
+                    'phone_number': result[2],
+                    'gmail': result[3],
+                    'use_credentials': bool(result[4]),
+                    'username': result[5],
+                    'password': result[6],
+                    'location': result[7] if result[7] is not None else ''
+                }
+            elif has_location:
+                return {
+                    'shop_name': result[0],
+                    'address': result[1],
+                    'phone_number': result[2],
+                    'use_credentials': bool(result[3]),
+                    'username': result[4],
+                    'password': result[5],
+                    'location': result[6] if result[6] is not None else '',
+                    'gmail': ''
+                }
+            elif has_gmail:
+                return {
+                    'shop_name': result[0],
+                    'address': result[1],
+                    'phone_number': result[2],
+                    'gmail': result[3],
+                    'use_credentials': bool(result[4]),
+                    'username': result[5],
+                    'password': result[6],
+                    'location': ''
+                }
+            else:
+                return {
+                    'shop_name': result[0],
+                    'address': result[1],
+                    'phone_number': result[2],
+                    'use_credentials': bool(result[3]),
+                    'username': result[4],
+                    'password': result[5],
+                    'location': '',
+                    'gmail': ''
+                }
         return None
     
     def update_admin_details(self, shop_name: str, address: str, phone_number: str, 
-                           use_credentials: bool, username: str, password: str) -> bool:
+                           use_credentials: bool, username: str, password: str, location: str = "", gmail: str = "") -> bool:
         """Update admin details"""
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
-            cursor.execute('''
-                UPDATE admin_details SET shop_name = ?, address = ?, phone_number = ?, 
-                use_credentials = ?, username = ?, password = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = (SELECT id FROM admin_details ORDER BY id LIMIT 1)
-            ''', (shop_name, address, phone_number, use_credentials, username, password))
+            # Check if 'location' and 'gmail' columns exist
+            cursor.execute("PRAGMA table_info(admin_details)")
+            columns = [col[1] for col in cursor.fetchall()]
+            has_location = 'location' in columns
+            has_gmail = 'gmail' in columns
+            if has_location and has_gmail:
+                cursor.execute('''
+                    UPDATE admin_details SET shop_name = ?, address = ?, phone_number = ?, gmail = ?, 
+                    use_credentials = ?, username = ?, password = ?, location = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = (SELECT id FROM admin_details ORDER BY id LIMIT 1)
+                ''', (shop_name, address, phone_number, gmail, use_credentials, username, password, location))
+            elif has_location:
+                cursor.execute('''
+                    UPDATE admin_details SET shop_name = ?, address = ?, phone_number = ?, 
+                    use_credentials = ?, username = ?, password = ?, location = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = (SELECT id FROM admin_details ORDER BY id LIMIT 1)
+                ''', (shop_name, address, phone_number, use_credentials, username, password, location))
+            elif has_gmail:
+                cursor.execute('''
+                    UPDATE admin_details SET shop_name = ?, address = ?, phone_number = ?, gmail = ?, 
+                    use_credentials = ?, username = ?, password = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = (SELECT id FROM admin_details ORDER BY id LIMIT 1)
+                ''', (shop_name, address, phone_number, gmail, use_credentials, username, password))
+            else:
+                cursor.execute('''
+                    UPDATE admin_details SET shop_name = ?, address = ?, phone_number = ?, 
+                    use_credentials = ?, username = ?, password = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = (SELECT id FROM admin_details ORDER BY id LIMIT 1)
+                ''', (shop_name, address, phone_number, use_credentials, username, password))
             conn.commit()
             conn.close()
             return True
-        except:
+        except Exception as e:
+            print(f"[DB ERROR] update_admin_details: {e}")
             return False
     
     def verify_admin_credentials(self, username: str, password: str) -> bool:

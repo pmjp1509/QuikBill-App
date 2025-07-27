@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-                             QPushButton, QLabel, QApplication, QFrame, QSizePolicy)
+                             QPushButton, QLabel, QApplication, QFrame, QSizePolicy, QSpacerItem)
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QPixmap, QIcon
 from billing_tabs.create_bill import CreateBillWindow
@@ -42,167 +42,78 @@ class HomeDashboard(QMainWindow):
 
         # Main layout
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0, 20, 0, 20)  # Add vertical margin buffer
+        main_layout.setContentsMargins(20, 20, 20, 20)
         central_widget.setLayout(main_layout)
 
         # Header
-        header_layout = QHBoxLayout()
-        header_label = QLabel("GST Billing System")
-        header_label.setFont(QFont("Arial", 24, QFont.Bold))
+        header_label = QLabel("QuickBill")
+        header_label.setFont(QFont("Poppins", 32, QFont.Bold))
         header_label.setAlignment(Qt.AlignCenter)
-        header_label.setStyleSheet("""
-            QLabel {
-                color: #2c3e50;
-                padding: 20px;
-                background-color: #ecf0f1;
-                border-radius: 10px;
-                margin-bottom: 20px;
-            }
-        """)
-        header_layout.addWidget(header_label)
-        main_layout.addLayout(header_layout)
+        main_layout.addWidget(header_label)
 
         # Subtitle
-        subtitle_label = QLabel("Complete Offline Billing Solution with GST Support")
-        subtitle_label.setFont(QFont("Arial", 14))
+        subtitle_label = QLabel("Offline Billing Solution with GST Support")
+        subtitle_label.setFont(QFont("Poppins", 18))
         subtitle_label.setAlignment(Qt.AlignCenter)
-        subtitle_label.setStyleSheet("""
-            QLabel {
-                color: #7f8c8d;
-                padding: 10px;
-                margin-bottom: 20px;
-            }
-        """)
         main_layout.addWidget(subtitle_label)
-        
-        # Main buttons container
-        # buttons_container = QWidget()
-        # buttons_layout = QVBoxLayout()
-        # buttons_container.setLayout(buttons_layout)
 
-        # Main buttons container
-        buttons_container = QWidget()
+        # Add some space
+        main_layout.addSpacing(40)
+
+        # Buttons layout
         buttons_layout = QVBoxLayout()
-        buttons_layout.setSpacing(20)  # More spacing between buttons
-        buttons_layout.setContentsMargins(40, 20, 40, 20)  # Outer margin
-        buttons_container.setLayout(buttons_layout)
-        buttons_container.setFixedHeight(420)  # Enough to fit all buttons + spacing
+        buttons_layout.setSpacing(20)
 
         # Create Bill Button
-        create_bill_btn = QPushButton("Create Bill")
-        create_bill_btn.setFont(QFont("Arial", 14, QFont.Bold))
-        create_bill_btn.setMinimumHeight(70)
+        create_bill_btn = QPushButton("📄 Create Bill")
+        create_bill_btn.setFont(QFont("Poppins", 20, QFont.Bold))
+        create_bill_btn.setMinimumHeight(100)
         create_bill_btn.clicked.connect(self.open_create_bill)
-        create_bill_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3498db;
-                color: white;
-                border: none;
-                border-radius: 15px;
-                padding: 12px;
-                margin: 0px;
-            }
-            QPushButton:hover {
-                background-color: #2980b9;
-            }
-            QPushButton:pressed {
-                background-color: #21618c;
-            }
-        """)
+        create_bill_btn.setStyleSheet("background-color: #3498db; color: white; border: none; border-radius: 8px; padding: 20px;")
+        buttons_layout.addWidget(create_bill_btn)
 
         # Bill History Button
-        bill_history_btn = QPushButton("Bill History")
-        bill_history_btn.setFont(QFont("Arial", 14, QFont.Bold))
-        bill_history_btn.setMinimumHeight(70)
+        bill_history_btn = QPushButton("📋 Bill History")
+        bill_history_btn.setFont(QFont("Poppins", 20, QFont.Bold))
+        bill_history_btn.setMinimumHeight(100)
         bill_history_btn.clicked.connect(self.open_bill_history)
-        bill_history_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2ecc71;
-                color: white;
-                border: none;
-                border-radius: 15px;
-                padding: 12px;
-                margin: 0px;
-            }
-            QPushButton:hover {
-                background-color: #27ae60;
-            }
-            QPushButton:pressed {
-                background-color: #1e8449;
-            }
-        """)
-
-        # Inventory Button (Purple)
-        inventory_btn = QPushButton("Inventory Management")
-        inventory_btn.setFont(QFont("Arial", 14, QFont.Bold))
-        inventory_btn.setMinimumHeight(70)
-        inventory_btn.clicked.connect(self.open_inventory)
-        inventory_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #9b59b6;
-                color: white;
-                border: none;
-                border-radius: 15px;
-                padding: 12px;
-                margin: 0px;
-            }
-            QPushButton:hover {
-                background-color: #8e44ad;
-            }
-            QPushButton:pressed {
-                background-color: #7d3c98;
-            }
-        """)
-
-        # Settings Button (Red)
-        settings_btn = QPushButton("Settings")
-        settings_btn.setFont(QFont("Arial", 14, QFont.Bold))
-        settings_btn.setMinimumHeight(70)
-        settings_btn.clicked.connect(self.open_settings)
-        settings_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #e74c3c;
-                color: white;
-                border: none;
-                border-radius: 15px;
-                padding: 12px;
-                margin: 0px;
-            }
-            QPushButton:hover {
-                background-color: #c0392b;
-            }
-            QPushButton:pressed {
-                background-color: #a93226;
-            }
-        """)
-
-        # Add buttons to layout
-        buttons_layout.addWidget(create_bill_btn)
+        bill_history_btn.setStyleSheet("background-color: #2ecc71; color: white; border: none; border-radius: 8px; padding: 20px;")
         buttons_layout.addWidget(bill_history_btn)
+
+        # Inventory Button
+        inventory_btn = QPushButton("📦 Inventory")
+        inventory_btn.setFont(QFont("Poppins", 20, QFont.Bold))
+        inventory_btn.setMinimumHeight(100)
+        inventory_btn.clicked.connect(self.open_inventory)
+        inventory_btn.setStyleSheet("background-color: #9b59b6; color: white; border: none; border-radius: 8px; padding: 20px;")
         buttons_layout.addWidget(inventory_btn)
+
+        # Settings Button
+        settings_btn = QPushButton("⚙️ Settings")
+        settings_btn.setFont(QFont("Poppins", 20, QFont.Bold))
+        settings_btn.setMinimumHeight(100)
+        settings_btn.clicked.connect(self.open_settings)
+        settings_btn.setStyleSheet("background-color: #e74c3c; color: white; border: none; border-radius: 8px; padding: 20px;")
         buttons_layout.addWidget(settings_btn)
 
-        main_layout.addWidget(buttons_container)
+        # Add buttons to main layout
+        main_layout.addLayout(buttons_layout)
 
-        # Footer with features
-        footer_label = QLabel("✓ GST Support  ✓ Thermal Printing  ✓ Barcode Scanning  ✓ Offline Database")
-        footer_label.setFont(QFont("Arial", 12))
+        # Add stretch to push everything to top
+        main_layout.addStretch()
+
+        # Footer
+        footer_label = QLabel("✓ GST Support  ✓ Thermal Printing  ✓ Barcode Scanning  ✓ Offline Database  ✓ Whatsapp bill sharing")
+        footer_label.setFont(QFont("Poppins", 16))
         footer_label.setAlignment(Qt.AlignCenter)
-        footer_label.setStyleSheet("""
-            QLabel {
-                color: #95a5a6;
-                padding: 15px;
-                background-color: #ecf0f1;
-                border-radius: 8px;
-                margin-top: 20px;
-            }
-        """)
+        footer_label.setStyleSheet("color: #95a5a6; padding: 20px;")
         main_layout.addWidget(footer_label)
-        
-        # Set main window style
+
+        # Set main window background
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #f8f9fa;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                    stop:0 #ffffff, stop:1 #f8f9fa);
             }
         """)
     
@@ -214,68 +125,6 @@ class HomeDashboard(QMainWindow):
         center_point = screen.geometry().center()
         frame_geom.moveCenter(center_point)
         self.move(frame_geom.topLeft())
-    
-    def resizeEvent(self, event):
-        """Handle window resize events"""
-        super().resizeEvent(event)
-        # Adjust button sizes based on window size
-        width = self.width()
-        height = self.height()
-        
-        # Scale button heights based on window size
-        if height < 600:
-            button_height = 80
-            font_size = 14
-        elif height < 800:
-            button_height = 100
-            font_size = 16
-        else:
-            button_height = 120
-            font_size = 18
-        
-        # Update button styles dynamically
-        button_style_template = """
-            QPushButton {{
-                background-color: {color};
-                color: white;
-                border: none;
-                border-radius: 15px;
-                padding: 20px;
-                margin: 10px;
-                min-height: {height}px;
-                font-size: {font_size}px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {hover_color};
-            }}
-            QPushButton:pressed {{
-                background-color: {pressed_color};
-            }}
-        """
-        
-        # Find and update buttons
-        for child in self.findChildren(QPushButton):
-            if child.text() == "Create Bill":
-                child.setStyleSheet(button_style_template.format(
-                    color="#3498db", hover_color="#2980b9", pressed_color="#21618c",
-                    height=button_height, font_size=font_size
-                ))
-            elif child.text() == "Bill History":
-                child.setStyleSheet(button_style_template.format(
-                    color="#2ecc71", hover_color="#27ae60", pressed_color="#1e8449",
-                    height=button_height, font_size=font_size
-                ))
-            elif child.text() == "Inventory Management":
-                child.setStyleSheet(button_style_template.format(
-                    color="#9b59b6", hover_color="#8e44ad", pressed_color="#7d3c98",
-                    height=button_height, font_size=font_size
-                ))
-            elif child.text() == "Settings":
-                child.setStyleSheet(button_style_template.format(
-                    color="#e74c3c", hover_color="#c0392b", pressed_color="#a93226",
-                    height=button_height, font_size=font_size
-                ))
     
     def open_create_bill(self):
         """Open Create Bill window"""

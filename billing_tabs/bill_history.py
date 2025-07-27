@@ -188,7 +188,7 @@ class BillHistoryWindow(QMainWindow):
         self.bills_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         
         # Set proper row height for buttons
-        self.bills_table.verticalHeader().setDefaultSectionSize(50)
+        self.bills_table.verticalHeader().setDefaultSectionSize(40)
         self.bills_table.horizontalHeader().setStretchLastSection(True)
         
         # Set column widths
@@ -200,7 +200,7 @@ class BillHistoryWindow(QMainWindow):
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Total Amount
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # SGST
         header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # CGST
-        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # Actions
+        header.setSectionResizeMode(7, QHeaderView.Stretch)  # Actions (was ResizeToContents)
         header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # Reprint
         
         main_layout.addWidget(self.bills_table)
@@ -282,17 +282,22 @@ class BillHistoryWindow(QMainWindow):
                     color: white;
                     border: none;
                     border-radius: 5px;
-                    padding: 8px 12px;
+                    padding: 0px 0px;
                     font-size: 11px;
                     min-width: 80px;
                     min-height: 30px;
+                    margin: 0px;
                 }
                 QPushButton:hover {
                     background-color: #138496;
                 }
             """)
+            view_btn.setMinimumHeight(30)
+            view_btn.setMaximumHeight(30)
+            view_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             view_btn.clicked.connect(lambda checked, bill_id=bill['id']: self.view_bill_details(bill_id))
             self.bills_table.setCellWidget(row, 7, view_btn)
+            self.bills_table.setRowHeight(row, 40)
             
             # Reprint button
             reprint_btn = QPushButton("Reprint")
@@ -302,15 +307,19 @@ class BillHistoryWindow(QMainWindow):
                     color: white;
                     border: none;
                     border-radius: 5px;
-                    padding: 8px 12px;
+                    padding: 0px 0px;
                     font-size: 11px;
                     min-width: 60px;
                     min-height: 30px;
+                    margin: 0px;
                 }
                 QPushButton:hover {
                     background-color: #218838;
                 }
             """)
+            reprint_btn.setMinimumHeight(30)
+            reprint_btn.setMaximumHeight(30)
+            reprint_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             reprint_btn.clicked.connect(lambda checked, bill_id=bill['id']: self.reprint_bill(bill_id))
             self.bills_table.setCellWidget(row, 8, reprint_btn)
     

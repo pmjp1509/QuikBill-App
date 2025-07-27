@@ -100,3 +100,27 @@ Phone Number: +916301138243
 Image: C:\Users\pmjpr\OneDrive\Desktop\Project_B-main\bills\bill_2.png
 Caption: Bill #2 from My Shop
 --------------------
+Date: 26/7/2025
+Time: 16:55
+Phone Number: +916301138243
+Image: C:\Users\HP\Downloads\QuikBill-App-main\QuikBill-App-main\data_base\bills\bill_4.png
+Caption: Hello varshith,Bill #4 from Hari Omm is attached.Thanks for shopping with us!
+--------------------
+Date: 26/7/2025
+Time: 17:8
+Phone Number: +916301138243
+Image: C:\Users\HP\Downloads\QuikBill-App-main\QuikBill-App-main\data_base\bills\bill_5.png
+Caption: Hello prakash,Bill #5 from Hari Omm is attached.Thanks for shopping with us!
+--------------------
+Date: 26/7/2025
+Time: 17:9
+Phone Number: +916301138243
+Image: C:\Users\HP\Downloads\QuikBill-App-main\QuikBill-App-main\data_base\bills\bill_6.png
+Caption: Hey prakash,Bill #6 from Hari Omm is attached.Thanks for shopping with us!
+--------------------
+Date: 26/7/2025
+Time: 17:10
+Phone Number: +916301138243
+Image: C:\Users\HP\Downloads\QuikBill-App-main\QuikBill-App-main\data_base\bills\bill_7.png
+Caption: Hello hari,Bill #7 from Hari Omm is attached.Hope to see you again!
+--------------------
