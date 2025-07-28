@@ -145,7 +145,7 @@ class LooseItemDialog(QDialog):
         self.quantity_input.valueChanged.connect(self.update_calculations)
         layout.addWidget(self.quantity_input)
         # Final Price (user input)
-        layout.addWidget(QLabel("Final Price per kg (₹):"))
+        layout.addWidget(QLabel("Set Price per kg (₹):"))
         self.final_price_input = QDoubleSpinBox()
         self.final_price_input.setMinimum(0.01)
         self.final_price_input.setMaximum(9999.99)
@@ -175,9 +175,11 @@ class LooseItemDialog(QDialog):
         add_button = QPushButton("Add to Bill")
         cancel_button = QPushButton("Cancel")
         add_button.clicked.connect(self.accept_item)
+        add_button.setDefault(True)
         cancel_button.clicked.connect(self.reject)
-        button_layout.addWidget(add_button)
         button_layout.addWidget(cancel_button)
+        button_layout.addWidget(add_button)
+        
         layout.addLayout(button_layout)
         self.setLayout(layout)
         self.update_calculations()
@@ -1086,25 +1088,38 @@ class CreateBillWindow(QMainWindow):
         footer_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(footer_label)
 
-        # --- QR CODE (bottom left) ---
+        # --- QR CODE (randomly positioned at bottom left or right) ---
         qr_data = admin_details.get('location', 'https://maps.app.goo.gl/qthz7Drt5WBdwBj49?g_st=aw')
         qr = qrcode.QRCode(box_size=2, border=1)
         qr.add_data(qr_data)
         qr.make(fit=True)
         img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
-        qr_size = 80
+        qr_size = 70
         img = img.resize((qr_size, qr_size))
         qimg = QImage(img.tobytes(), img.size[0], img.size[1], QImage.Format_RGB888)
         qr_pixmap = QPixmap.fromImage(qimg)
         qr_label = QLabel()
         qr_label.setPixmap(qr_pixmap)
-        qr_label.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
         qr_text = QLabel("Scan QR for location")
-        qr_text.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
-        qr_layout = QVBoxLayout()
-        qr_layout.addWidget(qr_label)
-        qr_layout.addWidget(qr_text)
-        qr_layout.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        
+        # Randomly choose left or right alignment
+        is_right_aligned = random.choice([True, False])
+        
+        if is_right_aligned:
+            qr_label.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+            qr_text.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+            qr_layout = QVBoxLayout()
+            qr_layout.addWidget(qr_label)
+            qr_layout.addWidget(qr_text)
+            qr_layout.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+        else:
+            qr_label.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+            qr_text.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+            qr_layout = QVBoxLayout()
+            qr_layout.addWidget(qr_label)
+            qr_layout.addWidget(qr_text)
+            qr_layout.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        
         # Add QR layout to the main layout at the bottom
         layout.addLayout(qr_layout)
         layout.addStretch()

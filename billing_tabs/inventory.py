@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QTableWidgetItem, QTabWidget, QDialog, QGridLayout,
                              QDoubleSpinBox, QMessageBox, QFileDialog, QComboBox,
                              QHeaderView, QAbstractItemView, QDialogButtonBox,
-                             QSpinBox, QSizePolicy, QApplication)
+                             QSpinBox, QSizePolicy, QApplication, QFormLayout)
 from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtGui import QFont, QPixmap
 from data_base.database import Database
@@ -17,7 +17,13 @@ class BarcodeItemDialog(QDialog):
         self.item_data = item_data
         self.setWindowTitle("Add/Edit Barcode Item" if not item_data else "Edit Barcode Item")
         self.setModal(True)
-        self.resize(500, 450)  # Reduced from 600
+        self.resize(400, 380)
+        self.setStyleSheet("""
+            QDialog { background: #f8f9fa; }
+            QLabel, QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox { font-family: 'Poppins'; font-size: 14px; }
+            QPushButton { padding: 8px 18px; border-radius: 6px; font-size: 14px; font-family: 'Poppins'; }
+            QPushButton:hover { background: #3498db; color: white; }
+        """)
         
         self.init_ui()
         
@@ -26,87 +32,83 @@ class BarcodeItemDialog(QDialog):
     
     def init_ui(self):
         layout = QVBoxLayout()
-        layout.setSpacing(10)  # Reduce spacing between elements
-        layout.setContentsMargins(15, 15, 15, 15)  # Reduce margins
-        
-        # Create form layout
-        form_layout = QGridLayout()
-        form_layout.setVerticalSpacing(8)  # Reduce vertical spacing between rows
-        form_layout.setHorizontalSpacing(15)  # Reduce horizontal spacing
+        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        # Title
+        title = QLabel("Add/Edit Barcode Item")
+        title.setFont(QFont("Poppins", 16, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+        # Form layout
+        form_layout = QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignRight)
+        form_layout.setFormAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        form_layout.setVerticalSpacing(8)
+        form_layout.setHorizontalSpacing(10)
         
         # Barcode
-        form_layout.addWidget(QLabel("Barcode:"), 0, 0)
         self.barcode_input = QLineEdit()
-        self.barcode_input.setFont(QFont("Arial", 12))
-        form_layout.addWidget(self.barcode_input, 0, 1)
+        self.barcode_input.setFont(QFont("Poppins", 13))
+        form_layout.addRow("Barcode:", self.barcode_input)
         
         # Item Name
-        form_layout.addWidget(QLabel("Item Name:"), 1, 0)
         self.name_input = QLineEdit()
-        self.name_input.setFont(QFont("Arial", 12))
-        form_layout.addWidget(self.name_input, 1, 1)
+        self.name_input.setFont(QFont("Poppins", 13))
+        form_layout.addRow("Item Name:", self.name_input)
         
         # HSN Code
-        form_layout.addWidget(QLabel("HSN Code:"), 2, 0)
         self.hsn_input = QLineEdit()
-        self.hsn_input.setFont(QFont("Arial", 12))
-        form_layout.addWidget(self.hsn_input, 2, 1)
+        self.hsn_input.setFont(QFont("Poppins", 13))
+        form_layout.addRow("HSN Code:", self.hsn_input)
         
         # Quantity
-        form_layout.addWidget(QLabel("Quantity:"), 3, 0)
         self.quantity_input = QSpinBox()
+        self.quantity_input.setFont(QFont("Poppins", 13))
         self.quantity_input.setMinimum(0)
         self.quantity_input.setMaximum(999999)
         self.quantity_input.setValue(0)
-        form_layout.addWidget(self.quantity_input, 3, 1)
+        form_layout.addRow("Quantity:", self.quantity_input)
         
-        # Base Price (auto-calculated, read-only)
-        form_layout.addWidget(QLabel("Base Price (₹):"), 4, 0)
-        self.base_price_input = QDoubleSpinBox()
-        self.base_price_input.setMinimum(0.01)
-        self.base_price_input.setMaximum(99999.99)
-        self.base_price_input.setDecimals(2)
-        self.base_price_input.setReadOnly(True)
-        form_layout.addWidget(self.base_price_input, 4, 1)
+        # Base Price (auto-calculated, read-only, now QLabel)
+        self.base_price_label = QLabel("0.00")
+        self.base_price_label.setFont(QFont("Poppins", 13, QFont.Bold))
+        form_layout.addRow("Base Price (₹):", self.base_price_label)
         
         # SGST %
-        form_layout.addWidget(QLabel("SGST (%):"), 5, 0)
         self.sgst_input = QDoubleSpinBox()
+        self.sgst_input.setFont(QFont("Poppins", 13))
         self.sgst_input.setMinimum(0.0)
         self.sgst_input.setMaximum(50.0)
         self.sgst_input.setDecimals(2)
         self.sgst_input.setValue(0.0)
         self.sgst_input.valueChanged.connect(self.calculate_base_price)
-        form_layout.addWidget(self.sgst_input, 5, 1)
+        form_layout.addRow("SGST (%):", self.sgst_input)
         
         # CGST %
-        form_layout.addWidget(QLabel("CGST (%):"), 6, 0)
         self.cgst_input = QDoubleSpinBox()
+        self.cgst_input.setFont(QFont("Poppins", 13))
         self.cgst_input.setMinimum(0.0)
         self.cgst_input.setMaximum(50.0)
         self.cgst_input.setDecimals(2)
         self.cgst_input.setValue(0.0)
         self.cgst_input.valueChanged.connect(self.calculate_base_price)
-        form_layout.addWidget(self.cgst_input, 6, 1)
+        form_layout.addRow("CGST (%):", self.cgst_input)
         
         layout.addLayout(form_layout)
-        
         # Final Price (user input) at the bottom
-        final_price_layout = QHBoxLayout()
-        final_price_layout.setSpacing(10)  # Reduce spacing
-        final_price_label = QLabel("Final Price (₹):")
-        final_price_layout.addWidget(final_price_label)
         self.final_price_input = QDoubleSpinBox()
+        self.final_price_input.setFont(QFont("Poppins", 13))
         self.final_price_input.setMinimum(0.01)
         self.final_price_input.setMaximum(99999.99)
         self.final_price_input.setDecimals(2)
         self.final_price_input.setValue(1.00)
         self.final_price_input.valueChanged.connect(self.calculate_base_price)
-        final_price_layout.addWidget(self.final_price_input)
-        layout.addLayout(final_price_layout)
+        layout.addSpacing(4)
+        layout.addLayout(self._form_row("Final Price (₹):", self.final_price_input))
         
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.setFont(QFont("Poppins", 13))
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
@@ -115,6 +117,14 @@ class BarcodeItemDialog(QDialog):
         
         # Initial calculation
         self.calculate_base_price()
+
+    def _form_row(self, label, widget):
+        row = QHBoxLayout()
+        lab = QLabel(label)
+        lab.setFont(QFont("Poppins", 13))
+        row.addWidget(lab)
+        row.addWidget(widget)
+        return row
     
     def calculate_base_price(self):
         """Calculate and display total price"""
@@ -124,7 +134,7 @@ class BarcodeItemDialog(QDialog):
         
         divisor = 1 + (sgst_percent + cgst_percent) / 100
         base_price = final_price / divisor if divisor != 0 else 0
-        self.base_price_input.setValue(base_price)
+        self.base_price_label.setText(f"{base_price:.2f}")
     
     def load_item_data(self):
         """Load existing item data"""
@@ -178,7 +188,13 @@ class LooseItemDialog(QDialog):
         self.item_data = item_data
         self.setWindowTitle("Add/Edit Loose Item")
         self.setModal(True)
-        self.resize(500, 550)  # Reduced from 700
+        self.resize(400, 420)
+        self.setStyleSheet("""
+            QDialog { background: #f8f9fa; }
+            QLabel, QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox { font-family: 'Poppins'; font-size: 14px; }
+            QPushButton { padding: 8px 18px; border-radius: 6px; font-size: 14px; font-family: 'Poppins'; }
+            QPushButton:hover { background: #3498db; color: white; }
+        """)
         
         self.init_ui()
         
@@ -187,105 +203,99 @@ class LooseItemDialog(QDialog):
     
     def init_ui(self):
         layout = QVBoxLayout()
-        layout.setSpacing(10)  # Reduce spacing between elements
-        layout.setContentsMargins(15, 15, 15, 15)  # Reduce margins
-        
-        # Create form layout
-        form_layout = QGridLayout()
-        form_layout.setVerticalSpacing(8)  # Reduce vertical spacing between rows
-        form_layout.setHorizontalSpacing(15)  # Reduce horizontal spacing
+        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        # Title
+        title = QLabel("Add/Edit Loose Item")
+        title.setFont(QFont("Poppins", 16, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+        # Form layout
+        form_layout = QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignRight)
+        form_layout.setFormAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        form_layout.setVerticalSpacing(8)
+        form_layout.setHorizontalSpacing(10)
         
         # Category
-        form_layout.addWidget(QLabel("Category:"), 0, 0)
         self.category_combo = QComboBox()
-        self.category_combo.setFont(QFont("Arial", 12))
+        self.category_combo.setFont(QFont("Poppins", 13))
         for category in self.categories:
             self.category_combo.addItem(category['name'], category['id'])
-        form_layout.addWidget(self.category_combo, 0, 1)
+        form_layout.addRow("Category:", self.category_combo)
         
         # Item Name
-        form_layout.addWidget(QLabel("Item Name:"), 1, 0)
         self.name_input = QLineEdit()
-        self.name_input.setFont(QFont("Arial", 12))
-        form_layout.addWidget(self.name_input, 1, 1)
+        self.name_input.setFont(QFont("Poppins", 13))
+        form_layout.addRow("Item Name:", self.name_input)
         
         # HSN Code
-        form_layout.addWidget(QLabel("HSN Code:"), 2, 0)
         self.hsn_input = QLineEdit()
-        self.hsn_input.setFont(QFont("Arial", 12))
-        form_layout.addWidget(self.hsn_input, 2, 1)
+        self.hsn_input.setFont(QFont("Poppins", 13))
+        form_layout.addRow("HSN Code:", self.hsn_input)
         
         # Quantity
-        form_layout.addWidget(QLabel("Quantity:"), 3, 0)
         self.quantity_input = QSpinBox()
+        self.quantity_input.setFont(QFont("Poppins", 13))
         self.quantity_input.setMinimum(0)
         self.quantity_input.setMaximum(999999)
         self.quantity_input.setValue(0)
-        form_layout.addWidget(self.quantity_input, 3, 1)
+        form_layout.addRow("Quantity:", self.quantity_input)
         
-        # Base Price (auto-calculated, read-only)
-        form_layout.addWidget(QLabel("Base Price per kg (₹):"), 4, 0)
-        self.base_price_input = QDoubleSpinBox()
-        self.base_price_input.setMinimum(0.01)
-        self.base_price_input.setMaximum(99999.99)
-        self.base_price_input.setDecimals(2)
-        self.base_price_input.setReadOnly(True)
-        form_layout.addWidget(self.base_price_input, 4, 1)
+        # Base Price per kg (auto-calculated, read-only, now QLabel)
+        self.base_price_label = QLabel("0.00")
+        self.base_price_label.setFont(QFont("Poppins", 13, QFont.Bold))
+        form_layout.addRow("Base Price per kg (₹):", self.base_price_label)
         
         # SGST %
-        form_layout.addWidget(QLabel("SGST (%):"), 5, 0)
         self.sgst_input = QDoubleSpinBox()
+        self.sgst_input.setFont(QFont("Poppins", 13))
         self.sgst_input.setMinimum(0.0)
         self.sgst_input.setMaximum(50.0)
         self.sgst_input.setDecimals(2)
         self.sgst_input.setValue(0.0)
         self.sgst_input.valueChanged.connect(self.calculate_base_price)
-        form_layout.addWidget(self.sgst_input, 5, 1)
+        form_layout.addRow("SGST (%):", self.sgst_input)
         
         # CGST %
-        form_layout.addWidget(QLabel("CGST (%):"), 6, 0)
         self.cgst_input = QDoubleSpinBox()
+        self.cgst_input.setFont(QFont("Poppins", 13))
         self.cgst_input.setMinimum(0.0)
         self.cgst_input.setMaximum(50.0)
         self.cgst_input.setDecimals(2)
         self.cgst_input.setValue(0.0)
         self.cgst_input.valueChanged.connect(self.calculate_base_price)
-        form_layout.addWidget(self.cgst_input, 6, 1)
+        form_layout.addRow("CGST (%):", self.cgst_input)
         
         # Image
-        form_layout.addWidget(QLabel("Image (optional):"), 7, 0)
         image_layout = QHBoxLayout()
         self.image_path_input = QLineEdit()
-        self.image_path_input.setFont(QFont("Arial", 12))
+        self.image_path_input.setFont(QFont("Poppins", 13))
         self.image_path_input.setPlaceholderText("Select image file...")
         image_layout.addWidget(self.image_path_input)
-        
         browse_btn = QPushButton("Browse")
+        browse_btn.setFont(QFont("Poppins", 13))
         browse_btn.clicked.connect(self.browse_image)
         image_layout.addWidget(browse_btn)
-        
         image_widget = QWidget()
         image_widget.setLayout(image_layout)
-        form_layout.addWidget(image_widget, 7, 1)
+        form_layout.addRow("Image (optional):", image_widget)
         
         layout.addLayout(form_layout)
-        
         # Final Price (user input) at the bottom
-        final_price_layout = QHBoxLayout()
-        final_price_layout.setSpacing(10)  # Reduce spacing
-        final_price_label = QLabel("Final Price per kg (₹):")
-        final_price_layout.addWidget(final_price_label)
         self.final_price_input = QDoubleSpinBox()
+        self.final_price_input.setFont(QFont("Poppins", 13))
         self.final_price_input.setMinimum(0.01)
         self.final_price_input.setMaximum(99999.99)
         self.final_price_input.setDecimals(2)
         self.final_price_input.setValue(1.00)
         self.final_price_input.valueChanged.connect(self.calculate_base_price)
-        final_price_layout.addWidget(self.final_price_input)
-        layout.addLayout(final_price_layout)
+        layout.addSpacing(4)
+        layout.addLayout(self._form_row("Final Price per kg (₹):", self.final_price_input))
         
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.setFont(QFont("Poppins", 13))
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
@@ -294,6 +304,14 @@ class LooseItemDialog(QDialog):
         
         # Initial calculation
         self.calculate_base_price()
+
+    def _form_row(self, label, widget):
+        row = QHBoxLayout()
+        lab = QLabel(label)
+        lab.setFont(QFont("Poppins", 13))
+        row.addWidget(lab)
+        row.addWidget(widget)
+        return row
     
     def calculate_base_price(self):
         """Calculate and display total price"""
@@ -303,7 +321,7 @@ class LooseItemDialog(QDialog):
         
         divisor = 1 + (sgst_percent + cgst_percent) / 100
         base_price = final_price / divisor if divisor != 0 else 0
-        self.base_price_input.setValue(base_price)
+        self.base_price_label.setText(f"{base_price:.2f}")
     
     def browse_image(self):
         """Browse for image file and copy to images folder if not already there"""
@@ -439,6 +457,9 @@ class InventoryWindow(QMainWindow):
         self.setWindowTitle("Inventory Management")
         self.setMinimumSize(900, 600)
         self.db = Database()
+        # Store original data for filtering
+        self.all_barcode_items = []
+        self.all_loose_items = []
         self.init_ui()
         self.load_data()
 
@@ -479,57 +500,85 @@ class InventoryWindow(QMainWindow):
         layout = QVBoxLayout()
         self.barcode_tab.setLayout(layout)
 
-        # Controls
+        # Controls + Search Bar in one row
         controls_layout = QHBoxLayout()
+        # Search bar (left, fills space)
+        self.barcode_search_input = QLineEdit()
+        self.barcode_search_input.setFont(QFont("Poppins", 12))
+        self.barcode_search_input.setPlaceholderText("Search by barcode, name, or HSN code...")
+        self.barcode_search_input.textChanged.connect(self.filter_barcode_items)
+        self.barcode_search_input.setMinimumWidth(50)
+        controls_layout.addWidget(self.barcode_search_input, 10)
+        clear_search_btn = QPushButton("Clear")
+        clear_search_btn.setFont(QFont("Poppins", 11))
+        clear_search_btn.setFixedHeight(32)
+        clear_search_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #6c757d;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 4px 12px;
+            }
+            QPushButton:hover {
+                background-color: #5a6268;
+            }
+        """)
+        clear_search_btn.clicked.connect(self.clear_barcode_search)
+        controls_layout.addWidget(clear_search_btn, 0)
+        controls_layout.addStretch(1)
+        # Buttons (right)
         add_btn = QPushButton("Add Barcode Item")
-        add_btn.setFont(QFont("Poppins", 12))
+        add_btn.setFont(QFont("Poppins", 11))
+        add_btn.setFixedHeight(32)
         add_btn.setStyleSheet("""
             QPushButton {
                 background-color: #28a745;
                 color: white;
                 border: none;
                 border-radius: 6px;
-                padding: 8px 18px;
+                padding: 4px 12px;
             }
             QPushButton:hover {
                 background-color: #218838;
             }
         """)
         add_btn.clicked.connect(self.add_barcode_item)
-        controls_layout.addWidget(add_btn)
+        controls_layout.addWidget(add_btn, 0)
         upload_btn = QPushButton("Upload CSV")
-        upload_btn.setFont(QFont("Poppins", 12))
+        upload_btn.setFont(QFont("Poppins", 11))
+        upload_btn.setFixedHeight(32)
         upload_btn.setStyleSheet("""
             QPushButton {
                 background-color: #f39c12;
                 color: white;
                 border: none;
                 border-radius: 6px;
-                padding: 8px 18px;
+                padding: 4px 12px;
             }
             QPushButton:hover {
                 background-color: #e67e22;
             }
         """)
         upload_btn.clicked.connect(self.upload_barcode_csv)
-        controls_layout.addWidget(upload_btn)
+        controls_layout.addWidget(upload_btn, 0)
         refresh_btn = QPushButton("Refresh")
-        refresh_btn.setFont(QFont("Poppins", 12))
+        refresh_btn.setFont(QFont("Poppins", 11))
+        refresh_btn.setFixedHeight(32)
         refresh_btn.setStyleSheet("""
             QPushButton {
                 background-color: #17a2b8;
                 color: white;
                 border: none;
                 border-radius: 6px;
-                padding: 8px 18px;
+                padding: 4px 12px;
             }
             QPushButton:hover {
                 background-color: #138496;
             }
         """)
         refresh_btn.clicked.connect(self.load_barcode_items)
-        controls_layout.addWidget(refresh_btn)
-        controls_layout.addStretch()
+        controls_layout.addWidget(refresh_btn, 0)
         layout.addLayout(controls_layout)
 
         # Table
@@ -551,96 +600,138 @@ class InventoryWindow(QMainWindow):
         header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(7, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(8, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(9, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(9, QHeaderView.Fixed)
+        self.barcode_table.setColumnWidth(9, 120)  # Actions column wider
+        self.barcode_table.setStyleSheet("font-size: 18px;")
         layout.addWidget(self.barcode_table)
 
     def init_loose_tab(self):
         layout = QVBoxLayout()
         self.loose_tab.setLayout(layout)
 
-        # Controls
+        # Controls + Search Bar in one row
         controls_layout = QHBoxLayout()
+        # Search bar (left, fills space)
+        self.loose_search_input = QLineEdit()
+        self.loose_search_input.setFont(QFont("Poppins", 12))
+        self.loose_search_input.setPlaceholderText("Search by name, HSN code, or category...")
+        self.loose_search_input.textChanged.connect(self.filter_loose_items)
+        self.loose_search_input.setMinimumWidth(50)
+        controls_layout.addWidget(self.loose_search_input, 10)
+
+        # Move Clear button immediately after search bar
+        clear_search_btn = QPushButton("Clear")
+        clear_search_btn.setFont(QFont("Poppins", 11))
+        clear_search_btn.setFixedHeight(32)
+        clear_search_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #6c757d;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 4px 12px;
+            }
+            QPushButton:hover {
+                background-color: #5a6268;
+            }
+        """)
+        clear_search_btn.clicked.connect(self.clear_loose_search)
+        controls_layout.addWidget(clear_search_btn, 0)
+
+        # Category filter beside clear button
+        self.category_filter = QComboBox()
+        self.category_filter.setFont(QFont("Poppins", 12))
+        self.category_filter.setMinimumWidth(120)
+        self.category_filter.currentIndexChanged.connect(self.filter_loose_items)
+        controls_layout.addWidget(self.category_filter, 0)
+        self.update_category_filter()
+
+        # Buttons (right)
         add_cat_btn = QPushButton("Add Category")
-        add_cat_btn.setFont(QFont("Poppins", 12))
+        add_cat_btn.setFont(QFont("Poppins", 11))
+        add_cat_btn.setFixedHeight(32)
         add_cat_btn.setStyleSheet("""
             QPushButton {
                 background-color: #28a745;
                 color: white;
                 border: none;
                 border-radius: 6px;
-                padding: 8px 18px;
+                padding: 4px 12px;
             }
             QPushButton:hover {
                 background-color: #218838;
             }
         """)
         add_cat_btn.clicked.connect(self.add_category)
-        controls_layout.addWidget(add_cat_btn)
+        controls_layout.addWidget(add_cat_btn, 0)
         del_cat_btn = QPushButton("Delete Category")
-        del_cat_btn.setFont(QFont("Poppins", 12))
+        del_cat_btn.setFont(QFont("Poppins", 11))
+        del_cat_btn.setFixedHeight(32)
         del_cat_btn.setStyleSheet("""
             QPushButton {
                 background-color: #e74c3c;
                 color: white;
                 border: none;
                 border-radius: 6px;
-                padding: 8px 18px;
+                padding: 4px 12px;
             }
             QPushButton:hover {
                 background-color: #c0392b;
             }
         """)
         del_cat_btn.clicked.connect(self.delete_category)
-        controls_layout.addWidget(del_cat_btn)
+        controls_layout.addWidget(del_cat_btn, 0)
         add_loose_btn = QPushButton("Add Loose Item")
-        add_loose_btn.setFont(QFont("Poppins", 12))
+        add_loose_btn.setFont(QFont("Poppins", 11))
+        add_loose_btn.setFixedHeight(32)
         add_loose_btn.setStyleSheet("""
             QPushButton {
                 background-color: #28a745;
                 color: white;
                 border: none;
                 border-radius: 6px;
-                padding: 8px 18px;
+                padding: 4px 12px;
             }
             QPushButton:hover {
                 background-color: #218838;
             }
         """)
         add_loose_btn.clicked.connect(self.add_loose_item)
-        controls_layout.addWidget(add_loose_btn)
+        controls_layout.addWidget(add_loose_btn, 0)
         upload_btn = QPushButton("Upload CSV")
-        upload_btn.setFont(QFont("Poppins", 12))
+        upload_btn.setFont(QFont("Poppins", 11))
+        upload_btn.setFixedHeight(32)
         upload_btn.setStyleSheet("""
             QPushButton {
                 background-color: #f39c12;
                 color: white;
                 border: none;
                 border-radius: 6px;
-                padding: 8px 18px;
+                padding: 4px 12px;
             }
             QPushButton:hover {
                 background-color: #e67e22;
             }
         """)
         upload_btn.clicked.connect(self.upload_loose_csv)
-        controls_layout.addWidget(upload_btn)
+        controls_layout.addWidget(upload_btn, 0)
         refresh_btn = QPushButton("Refresh")
-        refresh_btn.setFont(QFont("Poppins", 12))
+        refresh_btn.setFont(QFont("Poppins", 11))
+        refresh_btn.setFixedHeight(32)
         refresh_btn.setStyleSheet("""
             QPushButton {
                 background-color: #17a2b8;
                 color: white;
                 border: none;
                 border-radius: 6px;
-                padding: 8px 18px;
+                padding: 4px 12px;
             }
             QPushButton:hover {
                 background-color: #138496;
             }
         """)
         refresh_btn.clicked.connect(self.load_loose_items)
-        controls_layout.addWidget(refresh_btn)
-        controls_layout.addStretch()
+        controls_layout.addWidget(refresh_btn, 0)
         layout.addLayout(controls_layout)
 
         # Table
@@ -663,7 +754,9 @@ class InventoryWindow(QMainWindow):
         header.setSectionResizeMode(7, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(8, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(9, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(10, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(10, QHeaderView.Fixed)
+        self.loose_table.setColumnWidth(10, 120)  # Actions column wider
+        self.loose_table.setStyleSheet("font-size: 18px;")
         layout.addWidget(self.loose_table)
 
     # --- Barcode Items Logic ---
@@ -672,8 +765,8 @@ class InventoryWindow(QMainWindow):
         self.load_loose_items()
 
     def load_barcode_items(self):
-        items = self.db.get_all_barcode_items()
-        self.display_barcode_items(items)
+        self.all_barcode_items = self.db.get_all_barcode_items()
+        self.display_barcode_items(self.all_barcode_items)
 
     def display_barcode_items(self, items):
         self.barcode_table.setRowCount(len(items))
@@ -797,7 +890,9 @@ class InventoryWindow(QMainWindow):
                 item['category_name'] = category['name']
                 item['category_id'] = category['id']
                 all_items.append(item)
-        self.display_loose_items(all_items)
+        self.all_loose_items = all_items
+        self.display_loose_items(self.all_loose_items)
+        self.update_category_filter()
 
     def display_loose_items(self, items):
         self.loose_table.setRowCount(len(items))
@@ -833,6 +928,7 @@ class InventoryWindow(QMainWindow):
                     border: none;
                     border-radius: 4px;
                     font-size: 11px;
+                    padding: 4px 12px;
                 }
                 QPushButton:hover {
                     background-color: #138496;
@@ -852,6 +948,7 @@ class InventoryWindow(QMainWindow):
                     border: none;
                     border-radius: 4px;
                     font-size: 11px;
+                    padding: 4px 12px;
                 }
                 QPushButton:hover {
                     background-color: #c0392b;
@@ -871,6 +968,7 @@ class InventoryWindow(QMainWindow):
             if self.db.add_loose_category(category_name):
                 QMessageBox.information(self, "Success", "Category added successfully!")
                 self.load_loose_items()
+                self.update_category_filter()
             else:
                 QMessageBox.warning(self, "Error", "Failed to add category. Category might already exist.")
     
@@ -879,12 +977,60 @@ class InventoryWindow(QMainWindow):
         if not categories:
             QMessageBox.information(self, "Delete Category", "No categories to delete.")
             return
-        from PyQt5.QtWidgets import QInputDialog
-        items = [cat['name'] for cat in categories]
-        cat_name, ok = QInputDialog.getItem(self, "Delete Category", "Select category to delete:", items, 0, False)
-        if ok and cat_name:
-            confirm = QMessageBox.question(self, "Confirm Delete", f"Are you sure you want to delete category '{cat_name}'? This will also delete all loose items in this category.", QMessageBox.Yes | QMessageBox.No)
-            if confirm == QMessageBox.Yes:
+        # Custom large dialog for category selection
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QComboBox, QPushButton, QHBoxLayout
+        select_dialog = QDialog(self)
+        select_dialog.setWindowTitle("Delete Category")
+        select_dialog.resize(600, 320)
+        select_dialog.setStyleSheet("""
+            QDialog { background: #f8f9fa; }
+            QLabel, QComboBox, QPushButton { font-family: 'Poppins'; }
+            QLabel { font-size: 20px; font-weight: bold; }
+            QComboBox { font-size: 18px; min-width: 260px; padding: 8px; }
+            QPushButton { font-size: 16px; padding: 10px 28px; border-radius: 6px; }
+            QPushButton:hover { background: #3498db; color: white; }
+        """)
+        vlayout = QVBoxLayout()
+        vlayout.setContentsMargins(30, 30, 30, 30)
+        label = QLabel("Select category to delete:")
+        vlayout.addWidget(label)
+        combo = QComboBox()
+        for cat in categories:
+            combo.addItem(cat['name'])
+        vlayout.addWidget(combo)
+        hlayout = QHBoxLayout()
+        ok_btn = QPushButton("OK")
+        cancel_btn = QPushButton("Cancel")
+        hlayout.addWidget(ok_btn)
+        hlayout.addWidget(cancel_btn)
+        vlayout.addLayout(hlayout)
+        select_dialog.setLayout(vlayout)
+        ok_btn.clicked.connect(lambda: select_dialog.accept())
+        cancel_btn.clicked.connect(lambda: select_dialog.reject())
+        if select_dialog.exec_() == QDialog.Accepted:
+            cat_name = combo.currentText()
+            # Now show the big confirm dialog as before
+            confirm_dialog = QDialog(self)
+            confirm_dialog.setWindowTitle("Confirm Delete")
+            confirm_dialog.resize(600, 320)
+            confirm_dialog.setStyleSheet("QDialog, QLabel, QPushButton { font-family: 'Poppins'; font-size: 18px; }")
+            vlayout2 = QVBoxLayout()
+            vlayout2.setContentsMargins(30, 30, 30, 30)
+            warning = QLabel(f"<span style='font-size:18px;font-weight:bold;color:#e74c3c;'>Are you sure you want to delete category '<b>{cat_name}</b>'?</span><br><br>This will also delete all loose items in this category.")
+            warning.setWordWrap(True)
+            vlayout2.addWidget(warning)
+            hlayout2 = QHBoxLayout()
+            yes_btn = QPushButton("Yes, Delete")
+            yes_btn.setStyleSheet("background-color:#e74c3c;color:white;font-size:15px;padding:10px 24px;border-radius:6px;")
+            no_btn = QPushButton("Cancel")
+            no_btn.setStyleSheet("background-color:#bdc3c7;color:#2c3e50;font-size:15px;padding:10px 24px;border-radius:6px;")
+            hlayout2.addWidget(yes_btn)
+            hlayout2.addWidget(no_btn)
+            vlayout2.addLayout(hlayout2)
+            confirm_dialog.setLayout(vlayout2)
+            yes_btn.clicked.connect(lambda: confirm_dialog.accept())
+            no_btn.clicked.connect(lambda: confirm_dialog.reject())
+            if confirm_dialog.exec_() == QDialog.Accepted:
                 # Find category id
                 cat_id = next((cat['id'] for cat in categories if cat['name'] == cat_name), None)
                 if cat_id is not None:
@@ -897,6 +1043,7 @@ class InventoryWindow(QMainWindow):
                         QMessageBox.information(self, "Success", f"Category '{cat_name}' and its items deleted.")
                         self.load_loose_items()
                         self.load_data()  # Ensure all UI is refreshed
+                        self.update_category_filter()
                     finally:
                         conn.close()
                 else:
@@ -960,6 +1107,62 @@ class InventoryWindow(QMainWindow):
                 self.load_loose_items()
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Failed to import loose items from CSV: {e}")
+
+    # --- Search Functionality ---
+    def filter_barcode_items(self):
+        """Filter barcode items based on search text"""
+        search_text = self.barcode_search_input.text().lower().strip()
+        if not search_text:
+            self.display_barcode_items(self.all_barcode_items)
+            return
+        
+        filtered_items = []
+        for item in self.all_barcode_items:
+            # Search in barcode, name, and HSN code
+            if (search_text in item['barcode'].lower() or
+                search_text in item['name'].lower() or
+                search_text in item.get('hsn_code', '').lower()):
+                filtered_items.append(item)
+        
+        self.display_barcode_items(filtered_items)
+    
+    def clear_barcode_search(self):
+        """Clear barcode search and show all items"""
+        self.barcode_search_input.clear()
+        self.display_barcode_items(self.all_barcode_items)
+    
+    def update_category_filter(self):
+        self.category_filter.blockSignals(True)
+        self.category_filter.clear()
+        self.category_filter.addItem("All", None)
+        categories = self.db.get_loose_categories()
+        for cat in categories:
+            self.category_filter.addItem(cat['name'], cat['id'])
+        self.category_filter.blockSignals(False)
+
+    def filter_loose_items(self):
+        """Filter loose items based on search text and category filter"""
+        search_text = self.loose_search_input.text().lower().strip()
+        selected_cat_id = self.category_filter.currentData()
+        filtered_items = []
+        for item in self.all_loose_items:
+            matches_search = (
+                not search_text or
+                search_text in item['name'].lower() or
+                search_text in item.get('hsn_code', '').lower() or
+                search_text in item['category_name'].lower()
+            )
+            matches_category = (
+                selected_cat_id is None or item['category_id'] == selected_cat_id
+            )
+            if matches_search and matches_category:
+                filtered_items.append(item)
+        self.display_loose_items(filtered_items)
+    
+    def clear_loose_search(self):
+        """Clear loose items search and show all items (but keep category filter)"""
+        self.loose_search_input.clear()
+        self.filter_loose_items()
 
     def apply_loose_category_filter(self):
         selected = self.category_filter.currentText()
