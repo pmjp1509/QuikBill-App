@@ -453,9 +453,8 @@ class BillHistoryWindow(QMainWindow):
         
         with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
             fieldnames = [
-                'Bill ID', 'Customer Name', 'Customer Phone', 'Date/Time',
-                'Total Items', 'Total Weight (kg)', 'Total SGST (₹)', 'Total CGST (₹)', 
-                'Total Amount (₹)', 'Items Details'
+                'Bill ID', 'Customer Name', 'Mobile Number', 'Date', 'Time', 
+                'Total Items', 'Items', 'Total Amount'
             ]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             
@@ -465,23 +464,27 @@ class BillHistoryWindow(QMainWindow):
                 # Get bill details
                 detailed_bill = self.db.get_bill_by_id(bill['id'])
                 
-                # Format items details
-                items_details = "; ".join([
-                    f"{item['name']} ({item['quantity']:.2f} × ₹{item.get('base_price', 0):.2f}, Final: ₹{item.get('final_price', 0):.2f})"
-                    for item in detailed_bill['items']
-                ])
+                # Format date and time separately
+                try:
+                    date_time = datetime.strptime(bill['created_at'], '%Y-%m-%d %H:%M')
+                    date_str = date_time.strftime('%d/%m/%Y')
+                    time_str = date_time.strftime('%H:%M')
+                except:
+                    date_str = bill['created_at']
+                    time_str = "N/A"
+                
+                # Get all item names separated by comma
+                item_names = ", ".join([item['name'] for item in detailed_bill['items']])
                 
                 writer.writerow({
                     'Bill ID': bill['id'],
                     'Customer Name': bill['customer_name'],
-                    'Customer Phone': bill['customer_phone'] or 'N/A',
-                    'Date/Time': bill['created_at'],
+                    'Mobile Number': bill['customer_phone'] or 'N/A',
+                    'Date': date_str,
+                    'Time': time_str,
                     'Total Items': bill['total_items'],
-                    'Total Weight (kg)': bill.get('total_weight', 0),
-                    'Total SGST (₹)': bill.get('total_sgst', 0),
-                    'Total CGST (₹)': bill.get('total_cgst', 0),
-                    'Total Amount (₹)': bill['total_amount'],
-                    'Items Details': items_details
+                    'Items': item_names,
+                    'Total Amount': bill['total_amount']
                 })
         
         QMessageBox.information(self, "Success", f"Bills exported successfully to:\n{file_path}")

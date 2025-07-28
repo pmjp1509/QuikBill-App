@@ -1090,35 +1090,48 @@ class CreateBillWindow(QMainWindow):
 
         # --- QR CODE (randomly positioned at bottom left or right) ---
         qr_data = admin_details.get('location', 'https://maps.app.goo.gl/qthz7Drt5WBdwBj49?g_st=aw')
-        qr = qrcode.QRCode(box_size=2, border=1)
-        qr.add_data(qr_data)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
-        qr_size = 70
-        img = img.resize((qr_size, qr_size))
-        qimg = QImage(img.tobytes(), img.size[0], img.size[1], QImage.Format_RGB888)
-        qr_pixmap = QPixmap.fromImage(qimg)
+        # Generate QR code with better parameters
+        try:
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=3,
+                border=2
+            )
+            qr.add_data(qr_data)
+            qr.make(fit=True)
+            
+            # Create QR image
+            qr_img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Convert PIL image to QPixmap
+            qr_size = 80
+            qr_img = qr_img.resize((qr_size, qr_size), Image.Resampling.NEAREST)
+            
+            # Convert to RGB if needed
+            if qr_img.mode != 'RGB':
+                qr_img = qr_img.convert('RGB')
+            
+            # Convert to QImage
+            qimg = QImage(qr_img.tobytes(), qr_img.size[0], qr_img.size[1], qr_img.size[0] * 3, QImage.Format_RGB888)
+            qr_pixmap = QPixmap.fromImage(qimg)
+        except Exception as e:
+            print(f"QR code generation failed: {e}")
+            # Create a fallback QR code or empty pixmap
+            qr_pixmap = QPixmap(80, 80)
+            qr_pixmap.fill(Qt.white)
+        
         qr_label = QLabel()
         qr_label.setPixmap(qr_pixmap)
         qr_text = QLabel("Scan QR for location")
         
-        # Randomly choose left or right alignment
-        is_right_aligned = random.choice([True, False])
-        
-        if is_right_aligned:
-            qr_label.setAlignment(Qt.AlignRight | Qt.AlignBottom)
-            qr_text.setAlignment(Qt.AlignRight | Qt.AlignBottom)
-            qr_layout = QVBoxLayout()
-            qr_layout.addWidget(qr_label)
-            qr_layout.addWidget(qr_text)
-            qr_layout.setAlignment(Qt.AlignRight | Qt.AlignBottom)
-        else:
-            qr_label.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
-            qr_text.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
-            qr_layout = QVBoxLayout()
-            qr_layout.addWidget(qr_label)
-            qr_layout.addWidget(qr_text)
-            qr_layout.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        # QR code always in bottom-left corner
+        qr_label.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        qr_text.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        qr_layout = QVBoxLayout()
+        qr_layout.addWidget(qr_label)
+        qr_layout.addWidget(qr_text)
+        qr_layout.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
         
         # Add QR layout to the main layout at the bottom
         layout.addLayout(qr_layout)
