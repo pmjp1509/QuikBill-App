@@ -522,8 +522,24 @@ class BillHistoryWindow(QMainWindow):
         """)
 
     def showEvent(self, event):
+        screen = self.screen() if hasattr(self, 'screen') else QApplication.primaryScreen()
+        if hasattr(screen, 'geometry'):
+            screen_geom = screen.geometry()
+            default_width, default_height = 1280, 720
+            min_width, min_height = 800, 600
+            # Ensure min size does not exceed screen size
+            min_width = min(min_width, screen_geom.width())
+            min_height = min(min_height, screen_geom.height())
+            self.setMinimumSize(min_width, min_height)
+            width = min(default_width, screen_geom.width())
+            height = min(default_height, screen_geom.height())
+            width = max(width, min_width)
+            height = max(height, min_height)
+            self.resize(width, height)
+            frame_geom = self.frameGeometry()
+            frame_geom.moveCenter(screen_geom.center())
+            self.move(frame_geom.topLeft())
         super().showEvent(event)
-        self.load_bills()
 
     def changeEvent(self, event):
         if event.type() == QEvent.WindowStateChange:

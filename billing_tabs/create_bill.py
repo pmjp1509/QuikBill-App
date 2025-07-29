@@ -40,7 +40,7 @@ class CustomerInfoDialog(QDialog):
         # Customer Name with autocomplete
         layout.addWidget(QLabel("Customer Name (Required):"))
         self.name_input = QLineEdit()
-        self.name_input.setFont(QFont("Arial", 12))
+        self.name_input.setFont(QFont("Poppins", 12))
         
         # Setup autocomplete
         if self.customer_names:
@@ -58,7 +58,7 @@ class CustomerInfoDialog(QDialog):
         # Customer Phone
         layout.addWidget(QLabel("Customer Phone (Required):"))
         self.phone_input = QLineEdit()
-        self.phone_input.setFont(QFont("Arial", 12))
+        self.phone_input.setFont(QFont("Poppins", 12))
         layout.addWidget(self.phone_input)
         
         # Buttons
@@ -129,10 +129,10 @@ class LooseItemDialog(QDialog):
     def init_ui(self):
         layout = QVBoxLayout()
         name_label = QLabel(f"Item: {self.item_data['name']}")
-        name_label.setFont(QFont("Arial", 14, QFont.Bold))
+        name_label.setFont(QFont("Poppins", 14, QFont.Bold))
         layout.addWidget(name_label)
         hsn_label = QLabel(f"HSN Code: {self.item_data.get('hsn_code', 'N/A')}")
-        hsn_label.setFont(QFont("Arial", 12))
+        hsn_label.setFont(QFont("Poppins", 12))
         layout.addWidget(hsn_label)
         # Quantity
         layout.addWidget(QLabel("Quantity (kg):"))
@@ -155,19 +155,19 @@ class LooseItemDialog(QDialog):
         layout.addWidget(self.final_price_input)
         # Show SGST/CGST as labels (not editable)
         sgst_label = QLabel(f"SGST (%): {self.sgst_percent}")
-        sgst_label.setFont(QFont("Arial", 12))
+        sgst_label.setFont(QFont("Poppins", 12))
         layout.addWidget(sgst_label)
         cgst_label = QLabel(f"CGST (%): {self.cgst_percent}")
-        cgst_label.setFont(QFont("Arial", 12))
+        cgst_label.setFont(QFont("Poppins", 12))
         layout.addWidget(cgst_label)
         # Base price display (read-only)
         self.base_price_label = QLabel()
-        self.base_price_label.setFont(QFont("Arial", 12, QFont.Bold))
+        self.base_price_label.setFont(QFont("Poppins", 12, QFont.Bold))
         self.base_price_label.setStyleSheet("background-color: #f0f0f0; padding: 8px; border: 1px solid #ccc;")
         layout.addWidget(self.base_price_label)
         # Calculations display
         self.calculations_label = QLabel()
-        self.calculations_label.setFont(QFont("Arial", 12))
+        self.calculations_label.setFont(QFont("Poppins", 12))
         self.calculations_label.setStyleSheet("background-color: #f0f0f0; padding: 10px; border: 1px solid #ccc;")
         layout.addWidget(self.calculations_label)
         # Buttons
@@ -231,7 +231,7 @@ class LooseCategoryDialog(QDialog):
         
         # Title
         title_label = QLabel("Select Category")
-        title_label.setFont(QFont("Arial", 16, QFont.Bold))
+        title_label.setFont(QFont("Poppins", 16, QFont.Bold))
         title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(title_label)
         
@@ -241,7 +241,7 @@ class LooseCategoryDialog(QDialog):
         self.category_buttons = []
         for category in categories:
             cat_button = QPushButton(category['name'])
-            cat_button.setFont(QFont("Arial", 12))
+            cat_button.setFont(QFont("Poppins", 12))
             cat_button.setMinimumHeight(60)
             cat_button.clicked.connect(lambda checked, cat_id=category['id']: self.show_items(cat_id))
             self.categories_layout.addWidget(cat_button)
@@ -297,7 +297,7 @@ class LooseCategoryDialog(QDialog):
                 text += f"\nHSN: {item['hsn_code']}"
             
             item_button.setText(text)
-            item_button.setFont(QFont("Arial", 12))
+            item_button.setFont(QFont("Poppins", 12))
             item_button.setMinimumHeight(180)
             item_button.setMinimumWidth(180)
             item_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
@@ -380,7 +380,7 @@ class CreateBillWindow(QMainWindow):
         
         # Bill table
         bill_label = QLabel("Current Bill:")
-        bill_label.setFont(QFont("Arial", 14, QFont.Bold))
+        bill_label.setFont(QFont("Poppins", 14, QFont.Bold))
         left_layout.addWidget(bill_label)
         
         self.bill_table = QTableWidget()
@@ -415,19 +415,19 @@ class CreateBillWindow(QMainWindow):
         totals_frame.setLayout(totals_layout)
         
         self.items_count_label = QLabel("Total Items: 0")
-        self.items_count_label.setFont(QFont("Arial", 12, QFont.Bold))
+        self.items_count_label.setFont(QFont("Poppins", 12, QFont.Bold))
         totals_layout.addWidget(self.items_count_label)
         
         self.total_sgst_label = QLabel("Total SGST: ₹0.00")
-        self.total_sgst_label.setFont(QFont("Arial", 12))
+        self.total_sgst_label.setFont(QFont("Poppins", 12))
         totals_layout.addWidget(self.total_sgst_label)
         
         self.total_cgst_label = QLabel("Total CGST: ₹0.00")
-        self.total_cgst_label.setFont(QFont("Arial", 12))
+        self.total_cgst_label.setFont(QFont("Poppins", 12))
         totals_layout.addWidget(self.total_cgst_label)
         
         self.total_amount_label = QLabel("Total Amount: ₹0.00")
-        self.total_amount_label.setFont(QFont("Arial", 14, QFont.Bold))
+        self.total_amount_label.setFont(QFont("Poppins", 14, QFont.Bold))
         self.total_amount_label.setStyleSheet("color: #e74c3c;")
         totals_layout.addWidget(self.total_amount_label)
         
@@ -435,7 +435,7 @@ class CreateBillWindow(QMainWindow):
         
         # Finish button
         finish_btn = QPushButton("Finish & Print Bill")
-        finish_btn.setFont(QFont("Arial", 14, QFont.Bold))
+        finish_btn.setFont(QFont("Poppins", 14, QFont.Bold))
         finish_btn.setMinimumHeight(60)
         finish_btn.clicked.connect(self.finish_bill)
         finish_btn.setStyleSheet("""
@@ -460,18 +460,18 @@ class CreateBillWindow(QMainWindow):
         
         # Barcode input
         barcode_label = QLabel("Scan Barcode:")
-        barcode_label.setFont(QFont("Arial", 12, QFont.Bold))
+        barcode_label.setFont(QFont("Poppins", 12, QFont.Bold))
         right_layout.addWidget(barcode_label)
         
         self.barcode_input = QLineEdit()
-        self.barcode_input.setFont(QFont("Arial", 12))
+        self.barcode_input.setFont(QFont("Poppins", 12))
         self.barcode_input.setPlaceholderText("Scan or enter barcode...")
         self.barcode_input.textChanged.connect(self.on_barcode_input)
         right_layout.addWidget(self.barcode_input)
         
         # Add loose items button
         loose_items_btn = QPushButton("Add Loose Items")
-        loose_items_btn.setFont(QFont("Arial", 12, QFont.Bold))
+        loose_items_btn.setFont(QFont("Poppins", 12, QFont.Bold))
         loose_items_btn.setMinimumHeight(50)
         loose_items_btn.clicked.connect(self.add_loose_items)
         loose_items_btn.setStyleSheet("""
@@ -920,7 +920,7 @@ class CreateBillWindow(QMainWindow):
         widget.setStyleSheet("""
             QWidget {
                 background-color: white;
-                font-family: Arial;
+                font-family: Poppins;
             }
         """)
         layout = QVBoxLayout()
@@ -938,7 +938,7 @@ class CreateBillWindow(QMainWindow):
         shop_phone = admin_details.get('phone_number', 'Shop Phone')
         # Shop name bold, address and phone not bold, emojis
         shop_label = QLabel(f"<b>{shop_name}</b><br/>📍{shop_address}<br/>📞{shop_phone}")
-        shop_label.setFont(QFont("Arial", 15))
+        shop_label.setFont(QFont("Poppins", 15))
         shop_label.setAlignment(Qt.AlignCenter)
         shop_label.setStyleSheet("padding: 8px; border-bottom: 2px solid #000;")
         layout.addWidget(shop_label)
@@ -946,13 +946,13 @@ class CreateBillWindow(QMainWindow):
         # --- BILL INFO ROW: Bill ID (left), Date (right, date only) ---
         info_row = QHBoxLayout()
         bill_id_label = QLabel(f"Bill ID: {bill_data['id']}")
-        bill_id_label.setFont(QFont("Arial", 10))
+        bill_id_label.setFont(QFont("Poppins", 10))
         bill_id_label.setAlignment(Qt.AlignLeft)
         info_row.addWidget(bill_id_label, alignment=Qt.AlignLeft)
         info_row.addStretch()
         # Format date only
         date_label = QLabel(f"Date: {datetime.now().strftime('%d/%m/%Y')}")
-        date_label.setFont(QFont("Arial", 10))
+        date_label.setFont(QFont("Poppins", 10))
         date_label.setAlignment(Qt.AlignRight)
         info_row.addWidget(date_label, alignment=Qt.AlignRight)
         layout.addLayout(info_row)
@@ -962,7 +962,7 @@ class CreateBillWindow(QMainWindow):
         customer_time_row.setContentsMargins(0, 0, 0, 0)  # Remove all margins
 
         customer_label = QLabel(f"Customer: {bill_data['customer_name']}")
-        customer_label.setFont(QFont("Arial", 10))
+        customer_label.setFont(QFont("Poppins", 10))
         customer_label.setAlignment(Qt.AlignLeft)
         customer_label.setStyleSheet("padding: 0px; margin: 0px;")  # Remove all padding/margin
         customer_time_row.addWidget(customer_label, alignment=Qt.AlignLeft)
@@ -970,7 +970,7 @@ class CreateBillWindow(QMainWindow):
         customer_time_row.addStretch()
 
         time_label = QLabel(f"Time: {datetime.now().strftime('%I:%M %p')}")
-        time_label.setFont(QFont("Arial", 10))
+        time_label.setFont(QFont("Poppins", 10))
         time_label.setAlignment(Qt.AlignRight)
         customer_time_row.addWidget(time_label, alignment=Qt.AlignRight)
 
@@ -1062,7 +1062,7 @@ class CreateBillWindow(QMainWindow):
 
         # --- GRAND TOTAL FOOTER ---
         total_label = QLabel(f"GRAND TOTAL: ₹{total_final:.2f}")
-        total_label.setFont(QFont("Arial", 16, QFont.Bold))
+        total_label.setFont(QFont("Poppins", 16, QFont.Bold))
         total_label.setAlignment(Qt.AlignCenter)
         total_label.setStyleSheet("padding: 10px; background-color: #e8f4fd; border: 2px solid #3498db;")
         layout.addWidget(total_label)
@@ -1084,7 +1084,7 @@ class CreateBillWindow(QMainWindow):
             f"Thanks for shopping local with {shop_name}!",
         ]
         footer_label = QLabel(random.choice(thank_you_messages))
-        footer_label.setFont(QFont("Arial", 12))
+        footer_label.setFont(QFont("Poppins", 12))
         footer_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(footer_label)
 

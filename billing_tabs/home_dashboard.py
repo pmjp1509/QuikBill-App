@@ -172,8 +172,8 @@ class HomeDashboard(QMainWindow):
         main_layout.addStretch()
 
         # Footer
-        footer_label = QLabel("✓ GST Support  ✓ Thermal Printing  ✓ Barcode Scanning  ✓ Offline Database  ✓ Whatsapp bill sharing")
-        footer_label.setFont(QFont("Poppins", 16))
+        footer_label = QLabel("✓ GST Support  ✓ Thermal Printing[adjustable paper width]  ✓ Barcode Scanning  ✓ Offline Database ✓ Sales Report  ✓ Whatsapp bill sharing")
+        footer_label.setFont(QFont("Poppins", 12))
         footer_label.setAlignment(Qt.AlignCenter)
         footer_label.setStyleSheet("color: #95a5a6; padding: 20px;")
         main_layout.addWidget(footer_label)

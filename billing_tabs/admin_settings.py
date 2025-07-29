@@ -476,6 +476,90 @@ class AdminSettingsWindow(QMainWindow):
         
         main_layout.addWidget(security_group)
         
+        # Printer Settings Group
+        printer_group = QGroupBox("Printer Settings")
+        printer_group.setFont(QFont("Poppins", 14, QFont.Bold))
+        printer_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #bdc3c7;
+                border-radius: 10px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }
+        """)
+        
+        printer_layout = QVBoxLayout()
+        printer_group.setLayout(printer_layout)
+        
+        # Paper width selection
+        from PyQt5.QtWidgets import QComboBox
+        from billing_tabs.thermal_printer import ThermalPrinter
+        
+        paper_width_layout = QHBoxLayout()
+        paper_width_layout.addWidget(QLabel("Paper Width:"))
+        
+        self.paper_width_combo = QComboBox()
+        self.paper_width_combo.addItems(["58mm", "80mm", "112mm"])
+        self.paper_width_combo.setCurrentText(self.admin_details.get('paper_width', '80mm'))
+        self.paper_width_combo.currentTextChanged.connect(self.change_paper_width)
+        paper_width_layout.addWidget(self.paper_width_combo)
+        
+        printer_layout.addLayout(paper_width_layout)
+        
+        # Paper width description
+        self.paper_width_desc = QLabel("80mm - Standard receipt width (32 characters)")
+        self.paper_width_desc.setStyleSheet("font-size: 12px; color: #7f8c8d; padding: 5px;")
+        printer_layout.addWidget(self.paper_width_desc)
+        
+        # Test print buttons
+        test_buttons_layout = QHBoxLayout()
+        
+        self.test_print_btn = QPushButton("Test Print")
+        self.test_print_btn.clicked.connect(self.test_print)
+        self.test_print_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+        """)
+        test_buttons_layout.addWidget(self.test_print_btn)
+        
+        self.format_demo_btn = QPushButton("Format Demo")
+        self.format_demo_btn.clicked.connect(self.print_format_demo)
+        self.format_demo_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #9b59b6;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #8e44ad;
+            }
+        """)
+        test_buttons_layout.addWidget(self.format_demo_btn)
+        
+        printer_layout.addLayout(test_buttons_layout)
+        
+        main_layout.addWidget(printer_group)
+        
         # Add stretch to push everything to top
         main_layout.addStretch()
         
@@ -585,6 +669,70 @@ class AdminSettingsWindow(QMainWindow):
             else:
                 QMessageBox.warning(self, 'Error', 'Invalid credentials!')
         # If cancelled, do nothing 
+
+    def change_paper_width(self, width):
+        """Change paper width setting"""
+        try:
+            from billing_tabs.thermal_printer import ThermalPrinter
+            printer = ThermalPrinter()
+            if printer.set_paper_width(width):
+                # Update description
+                descriptions = {
+                    "58mm": "58mm - Compact width (24 characters)",
+                    "80mm": "80mm - Standard receipt width (32 characters)", 
+                    "112mm": "112mm - Wide format (48 characters)"
+                }
+                self.paper_width_desc.setText(descriptions.get(width, "Unknown width"))
+                QMessageBox.information(self, "Success", f"Paper width changed to {width}")
+            else:
+                QMessageBox.warning(self, "Error", "Failed to change paper width")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error changing paper width: {str(e)}")
+    
+    def test_print(self):
+        """Print a test page"""
+        try:
+            from billing_tabs.thermal_printer import ThermalPrinter
+            printer = ThermalPrinter()
+            
+            # Try to connect to printer (you may need to adjust connection method)
+            if not printer.is_connected:
+                # Try USB connection first
+                if not printer.connect_usb_printer():
+                    QMessageBox.warning(self, "Printer Not Connected", 
+                                       "Please connect your thermal printer first.\n\n"
+                                       "Supported connection methods:\n"
+                                       "- USB (most common)\n"
+                                       "- Serial (COM port)\n"
+                                       "- Network (IP address)")
+                    return
+            
+            if printer.print_test_page():
+                QMessageBox.information(self, "Success", "Test page printed successfully!")
+            else:
+                QMessageBox.warning(self, "Error", "Failed to print test page")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error printing test page: {str(e)}")
+    
+    def print_format_demo(self):
+        """Print a format demo showing how bills will look"""
+        try:
+            from billing_tabs.thermal_printer import ThermalPrinter
+            printer = ThermalPrinter()
+            
+            # Try to connect to printer
+            if not printer.is_connected:
+                if not printer.connect_usb_printer():
+                    QMessageBox.warning(self, "Printer Not Connected", 
+                                       "Please connect your thermal printer first.")
+                    return
+            
+            if printer.print_format_demo():
+                QMessageBox.information(self, "Success", "Format demo printed successfully!")
+            else:
+                QMessageBox.warning(self, "Error", "Failed to print format demo")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error printing format demo: {str(e)}")
 
 # 1. Add ChangePasswordDialog class
 class ChangePasswordDialog(QDialog):
